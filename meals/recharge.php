@@ -20,10 +20,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $conn->beginTransaction();
 
+            // First verify if student profile exists
+            $check_profile_sql = "SELECT id FROM student_profiles WHERE user_id = :user_id";
+            $check_profile_stmt = $conn->prepare($check_profile_sql);
+            $check_profile_stmt->bindValue(':user_id', $student_id, PDO::PARAM_INT);
+            $check_profile_stmt->execute();
+            $student_profile = $check_profile_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$student_profile) {
+                throw new PDOException('Student profile not found');
+            }
+
+            $student_profile_id = $student_profile['id'];
+
             // First check if student has a meal credit record and get current balance
             $check_sql = "SELECT id, credits FROM student_meal_credits WHERE student_id = :student_id FOR UPDATE";
             $check_stmt = $conn->prepare($check_sql);
-            $check_stmt->bindValue(':student_id', $student_id, PDO::PARAM_INT);
+            $check_stmt->bindValue(':student_id', $student_profile_id, PDO::PARAM_INT);
             $check_stmt->execute();
             $current_record = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -31,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Create new record if doesn't exist
                 $insert_sql = "INSERT INTO student_meal_credits (student_id, credits) VALUES (:student_id, 0)";
                 $insert_stmt = $conn->prepare($insert_sql);
-                $insert_stmt->bindValue(':student_id', $student_id, PDO::PARAM_INT);
+                $insert_stmt->bindValue(':student_id', $student_profile_id, PDO::PARAM_INT);
                 $insert_stmt->execute();
                 $current_balance = 0;
             } else {
@@ -46,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $conn->prepare($sql);
             $stmt->bindValue(':amount', $amount, PDO::PARAM_INT);
-            $stmt->bindValue(':student_id', $student_id, PDO::PARAM_INT);
+            $stmt->bindValue(':student_id', $student_profile_id, PDO::PARAM_INT);
 
             if ($stmt->execute()) {
                 $conn->commit();
@@ -55,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new PDOException('Failed to update credits');
             }
         } catch (PDOException $e) {
+            $_SESSION['error_message'] = 'Error: ' . $e->getMessage();
             $conn->rollBack();
             $_SESSION['error_message'] = 'Failed to add credits. Please try again.';
         }

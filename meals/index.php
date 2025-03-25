@@ -16,10 +16,13 @@ if (empty($_SESSION['csrf_token'])) {
 }
 
 // Get student's current credits
-$student_id = Session::getUserId();
-$credit_sql = "SELECT credits FROM student_meal_credits WHERE student_id = :student_id";
+$user_id = Session::getUserId();
+$credit_sql = "SELECT mc.credits 
+              FROM student_meal_credits mc 
+              INNER JOIN student_profiles sp ON mc.student_id = sp.id 
+              WHERE sp.user_id = :user_id";
 $stmt = $conn->prepare($credit_sql);
-$stmt->bindValue(':student_id', $student_id, PDO::PARAM_INT);
+$stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
 $stmt->execute();
 $result = $stmt->fetch(PDO::FETCH_ASSOC);
 $credits = $result['credits'] ?? 0;
@@ -39,9 +42,10 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 $current_month = date('m');
 $current_year = date('Y');
 $stats_sql = "SELECT total_meals, total_cost, savings FROM meal_statistics 
-             WHERE student_id = :student_id AND month = :month AND year = :year";
+             WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = :user_id)
+             AND month = :month AND year = :year";
 $stmt = $conn->prepare($stats_sql);
-$stmt->bindValue(':student_id', $student_id, PDO::PARAM_INT);
+$stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
 $stmt->bindValue(':month', $current_month, PDO::PARAM_INT);
 $stmt->bindValue(':year', $current_year, PDO::PARAM_INT);
 $stmt->execute();
@@ -465,16 +469,15 @@ require_once '../includes/header.php';
                         day
                     );
 
-                    // Skip if date is past, already scheduled, or after cutoff time for tomorrow
-                    if (date >= today &&
-                        !this.scheduledMeals.has(day) &&
-                        !(now > cutoffTime &&
+                    if (date > today && // Only allow future dates (not today or past)
+                        !this.scheduledMeals.has(day) && // Not already scheduled
+                        !(now > cutoffTime && // Not after cutoff time for tomorrow
                             date.getDate() === tomorrow.getDate() &&
                             date.getMonth() === tomorrow.getMonth() &&
                             date.getFullYear() === tomorrow.getFullYear())) {
                         futureDates.push({
                             day,
-                            isToday: date.getTime() === today.getTime(),
+                            isToday: false // Since we're blocking current day, this will always be false
                         });
                     }
                     day++;
