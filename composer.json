@@ -1,0 +1,12 @@
+{
+    "require": {
+        "league/oauth2-client": "^2.8",
+        "microsoft/microsoft-graph": "^2.30"
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true,
+            "tbachert/spi": true
+        }
+    }
+}
