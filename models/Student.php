@@ -60,7 +60,6 @@ class Student
     {
         $allowedFields = [
             'full_name',
-            'department',
             'phone_number',
             'department',
             'year',
@@ -234,7 +233,7 @@ class Student
                     village_area = :village_area,
                     guardian_name = :guardian_name,
                     guardian_phone = :guardian_phone,
-                    room_number = :room_number,
+                    room_number = :room_number
                     WHERE user_id = :user_id" :
                 "INSERT INTO " . $this->table . "
                     (user_id, student_id, full_name, department, year, semester,
@@ -265,6 +264,7 @@ class Student
             return $stmt->execute();
         } catch (Exception $e) {
             error_log('Error updating student profile: ' . $e->getMessage());
+            echo $e->getMessage();
             throw $e;
         }
     }
