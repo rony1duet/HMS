@@ -30,16 +30,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_date'])) {
         exit();
     }
 
-    // Check if it's past 10 PM for next day cancellation
+    // Check if it's past 10:00 PM for next day cancellation
     $current_time = new DateTime();
     $meal_datetime = new DateTime($meal_date);
     $cutoff_time = new DateTime($current_time->format('Y-m-d') . ' 22:00:00');
+    $next_day = clone $current_time;
+    $next_day->modify('+1 day');
 
     if (
         $current_time > $cutoff_time &&
-        $meal_datetime->format('Y-m-d') === $current_time->modify('+1 day')->format('Y-m-d')
+        $meal_datetime->format('Y-m-d') === $next_day->format('Y-m-d')
     ) {
-        $_SESSION['error_message'] = 'Cannot cancel meals for tomorrow after 10 PM.';
+        $_SESSION['error_message'] = 'Cannot cancel meals for tomorrow after 9:30 PM.';
         header('Location: index.php');
         exit();
     }
@@ -54,7 +56,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_date'])) {
         $year = date('Y', strtotime($meal_date));
         $day_column = 'day' . $day;
 
-        // Check if meal exists and is confirmed
+        // Check if meal exists, is confirmed, and hasn't been served yet
+        $current_time = new DateTime();
+        $meal_date = new DateTime($meal_date);
+        $meal_cutoff = clone $meal_date;
+        $meal_cutoff->setTime(21, 30); // 9:30 PM cutoff
+
+        if ($current_time > $meal_cutoff) {
+            throw new Exception('Cannot cancel meal after serving time (9:30 PM). Please cancel before 9:30 PM.');
+        }
+
         $check_sql = "SELECT id FROM meal_schedules 
                       WHERE student_id = :student_id 
                       AND month = :month 
@@ -83,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_date'])) {
         $stmt->bindValue(':year', $year, PDO::PARAM_INT);
         $stmt->execute();
 
-        // Refund credits
+        // Refund credits to student meal credits
         $meal_cost = 50.00; // Cost per meal in Taka
         $refund_sql = "UPDATE student_meal_credits 
                        SET credits = credits + :meal_cost 
@@ -94,8 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['meal_date'])) {
         $stmt->execute();
 
         // Update meal statistics
-        $month = date('m', strtotime($meal_date));
-        $year = date('Y', strtotime($meal_date));
+        // Month and year are already set above, no need to recalculate
         $stats_sql = "UPDATE meal_statistics 
                       SET total_meals = total_meals - 1,
                           total_cost = total_cost - :meal_cost 

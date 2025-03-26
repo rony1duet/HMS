@@ -83,7 +83,7 @@ try {
         'id' => $user['id'],
         'role' => $user['role'],
         'email' => $user['email'],
-        'username' => $user['display_name']
+        'display_name' => $user['display_name']
     ]);
 
     if ($remember) {

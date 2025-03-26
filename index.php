@@ -3,6 +3,11 @@ session_start();
 require_once 'config/database.php';
 require_once 'includes/header.php';
 
+// Initialize CSRF token if not exists
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 if (isset($_SESSION['user_id'])) {
     switch ($_SESSION['role']) {
         case 'student':
@@ -44,7 +49,7 @@ if (isset($_SESSION['user_id'])) {
                     <?php endif; ?>
 
                     <div class="p-2 text-center d-flex align-items-center flex-wrap gap-2 justify-content-center mb-4">
-                        <a href="" class="btn btn-outline-primary d-flex align-items-center justify-content-center text-uppercase">
+                        <a href="auth/google_login.php" class="btn btn-outline-primary d-flex align-items-center justify-content-center text-uppercase">
                             <i class="fab fa-google me-2"></i>
                             <span class="small">Provost Login</span>
                         </a>

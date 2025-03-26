@@ -14,7 +14,15 @@
 </head>
 
 <body class="bg-light">
-    <?php if (isset($_SESSION['user_id'])): ?>
+    <?php if (isset($_SESSION['user_id'])):
+
+        //echo session all data
+
+        // echo '<pre>';
+        // print_r($_SESSION);
+        // die
+
+    ?>
         <nav class="navbar navbar-expand-lg shadow-sm bg-primary navbar-dark">
             <div class="container-fluid">
                 <a class="navbar-brand text-white" href="<?php echo $_SESSION['role'] === 'student' ? '/HMS/dashboard/student.php' : ($_SESSION['role'] === 'admin' ? '/HMS/dashboard/admin.php' : '/HMS/dashboard/staff.php'); ?>">

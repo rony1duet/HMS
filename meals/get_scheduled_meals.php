@@ -12,7 +12,21 @@ if (!Session::isLoggedIn() || Session::getUserRole() !== 'student') {
 }
 
 // Get student's scheduled meals for current month
-$student_id = Session::getUserId();
+// Get student profile ID
+$user_id = Session::getUserId();
+$profile_sql = "SELECT id FROM student_profiles WHERE user_id = :user_id";
+$stmt = $conn->prepare($profile_sql);
+$stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+$stmt->execute();
+$student_profile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$student_profile) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Student profile not found']);
+    exit();
+}
+
+$student_id = $student_profile['id'];
 $current_month = date('m');
 $current_year = date('Y');
 

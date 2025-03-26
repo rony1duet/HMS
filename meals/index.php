@@ -41,7 +41,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 // Get meal statistics for current month
 $current_month = date('m');
 $current_year = date('Y');
-$stats_sql = "SELECT total_meals, total_cost, savings FROM meal_statistics 
+$stats_sql = "SELECT total_meals, total_cost FROM meal_statistics 
              WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = :user_id)
              AND month = :month AND year = :year";
 $stmt = $conn->prepare($stats_sql);
@@ -50,9 +50,19 @@ $stmt->bindValue(':month', $current_month, PDO::PARAM_INT);
 $stmt->bindValue(':year', $current_year, PDO::PARAM_INT);
 $stmt->execute();
 $stats = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$stats) {
-    $stats = ['total_meals' => 0, 'total_cost' => 0, 'savings' => 0];
-}
+// Calculate total meals and total cost for the current month
+$stats_sql = "SELECT SUM(total_meals) as total_meals, SUM(total_cost) as total_cost
+             FROM meal_statistics
+             WHERE student_id = (SELECT id FROM student_profiles WHERE user_id = :user_id)
+             AND month = :month AND year = :year";
+$stmt = $conn->prepare($stats_sql);
+$stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+$stmt->bindValue(':month', $current_month, PDO::PARAM_INT);
+$stmt->bindValue(':year', $current_year, PDO::PARAM_INT);
+$stmt->execute();
+$stats = $stmt->fetch(PDO::FETCH_ASSOC);
+$stats['total_meals'] = $stats['total_meals'] ?? 0;
+$stats['total_cost'] = $stats['total_cost'] ?? 0;
 
 require_once '../includes/header.php';
 ?>
@@ -163,21 +173,22 @@ require_once '../includes/header.php';
                 </div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between mb-3">
-                        <span>This Month's Meals</span>
+                        <span>Total Meals</span>
                         <span class="fw-bold"><?php echo htmlspecialchars($stats['total_meals']); ?></span>
                     </div>
                     <div class="d-flex justify-content-between mb-3">
-                        <span>Average Cost/Meal</span>
+                        <span>Cost Per Meal</span>
                         <span class="fw-bold">৳50</span>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Total Savings</span>
-                        <span class="fw-bold text-success">৳<?php echo htmlspecialchars($stats['savings']); ?></span>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>This Month's Cost</span>
+                        <span class="fw-bold">৳<?php echo htmlspecialchars($stats['total_cost']); ?></span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <script>
@@ -210,7 +221,7 @@ require_once '../includes/header.php';
 
             this.totalCredits = parseFloat(this.creditDisplay.innerText);
             this.mealCost = 50; // Cost per meal in Taka
-            this.cancelRefund = 50; // Refund amount when canceling
+            this.cancelRefund = 50; // Refund amount when canceling (changed from 100 to 50)
             this.selectedDates = new Set();
             this.minimumBalance = 0; // Minimum balance required
             this.scheduledMeals = new Set(); // Track scheduled meals
@@ -331,13 +342,17 @@ require_once '../includes/header.php';
             document.querySelector('form').addEventListener('submit', (event) => {
                 event.preventDefault();
                 const cancelDates = [];
+                const scheduleDates = [];
                 this.selectedDates.forEach(day => {
                     if (this.scheduledMeals.has(day)) {
                         const dateStr = `${this.today.getFullYear()}-${String(this.today.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                         cancelDates.push(dateStr);
+                    } else {
+                        scheduleDates.push(day);
                     }
                 });
                 document.getElementById('cancel-input').value = JSON.stringify(cancelDates);
+                document.getElementById('schedule-input').value = JSON.stringify(scheduleDates);
                 event.target.submit();
             });
         }
@@ -369,14 +384,14 @@ require_once '../includes/header.php';
                 // Mark meal for cancellation
                 if (this.selectedDates.has(day)) {
                     this.selectedDates.delete(day);
-                    cell.innerHTML = `<div class="p-1 text-success"><i class="fa-solid fa-circle-check"></i></div>`;
+                    cell.innerHTML = `<div class="p-1 text-primary"><i class="fa-solid fa-circle-check"></i></div>`;
                     // Remove virtual credit when un-canceling
                     this.virtualCredits -= this.cancelRefund;
                     this.updateCredits();
                 } else {
                     this.selectedDates.add(day);
                     cell.innerHTML = `<div class="p-1 text-warning"><i class="fa-solid fa-circle-minus"></i></div>`;
-                    // Add virtual credit when canceling (50 taka)
+                    // Add virtual credit when canceling
                     this.virtualCredits += this.cancelRefund;
                     this.updateCredits();
                 }
@@ -421,11 +436,7 @@ require_once '../includes/header.php';
         calculateTotalCost() {
             let cost = 0;
             this.selectedDates.forEach(day => {
-                if (this.scheduledMeals.has(day)) {
-                    // Canceling a meal adds to virtual credits (negative cost)
-                    cost -= this.cancelRefund;
-                } else {
-                    // Scheduling a meal costs money
+                if (!this.scheduledMeals.has(day)) {
                     cost += this.mealCost;
                 }
             });
@@ -524,10 +535,23 @@ require_once '../includes/header.php';
                 this.creditProgress.classList.remove("bg-danger");
                 this.creditProgress.classList.add("bg-success");
             }
+            // Update selected meals count and total cost
+            let newSelections = 0;
+            let cancellations = 0;
+            this.selectedDates.forEach(day => {
+                if (this.scheduledMeals.has(day)) {
+                    cancellations++;
+                } else {
+                    newSelections++;
+                }
+            });
 
-            this.selectedMealsCount.innerText = this.selectedDates.size;
-            this.totalCost.innerText = Math.abs(totalCost);
-            this.scheduleInput.value = JSON.stringify([...this.selectedDates]);
+            this.selectedMealsCount.innerText = newSelections;
+            this.totalCost.innerText = totalCost;
+
+            // Store selected dates for form submission
+            const selectedDatesArray = Array.from(this.selectedDates);
+            this.scheduleInput.value = JSON.stringify(selectedDatesArray);
         }
 
         loadScheduledMeals() {

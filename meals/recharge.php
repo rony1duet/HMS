@@ -13,7 +13,19 @@ if (!Session::isLoggedIn() || Session::getUserRole() !== 'student') {
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $amount = filter_input(INPUT_POST, 'amount', FILTER_VALIDATE_INT);
-    $student_id = Session::getUserId();
+    // Get student profile ID
+    $user_id = Session::getUserId();
+    $profile_sql = "SELECT id FROM student_profiles WHERE user_id = :user_id";
+    $stmt = $conn->prepare($profile_sql);
+    $stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+    $stmt->execute();
+    $student_profile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$student_profile) {
+        throw new PDOException('Student profile not found');
+    }
+
+    $student_id = $student_profile['id'];
 
     if ($amount && $amount > 0) {
         // Add credits to student's meal account
