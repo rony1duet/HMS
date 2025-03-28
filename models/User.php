@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/Model.php';
 
-class User extends Model {
+class User extends Model
+{
     protected $table = 'users';
 
-    public function findOrCreateByMicrosoftId($userData) {
+    public function findOrCreateByMicrosoftId($userData)
+    {
         try {
             $stmt = $this->executeQuery(
                 "SELECT id FROM {$this->table} WHERE microsoft_id = :microsoft_id",
@@ -23,18 +25,20 @@ class User extends Model {
         }
     }
 
-    private function createFromMicrosoft($userData) {
+    private function createFromMicrosoft($userData)
+    {
         try {
             $role = $this->determineRole($userData['email']);
-            
+
             $userId = parent::create([
                 'microsoft_id' => $userData['microsoft_id'],
                 'email' => $userData['email'],
                 'display_name' => $userData['display_name'],
                 'role' => $role,
-                'created_at' => date('Y-m-d H:i:s')
+                'created_at' => date('Y-m-d H:i:s'),
+                'last_login' => null
             ]);
-            
+
             return [
                 'id' => $userId,
                 'username' => $userData['display_name'],
@@ -48,7 +52,8 @@ class User extends Model {
         }
     }
 
-    private function determineRole($email) {
+    private function determineRole($email)
+    {
         if (strpos($email, '@student.duet.ac.bd') !== false) {
             if (strpos($email, 'student') !== false) {
                 return 'student';
@@ -58,7 +63,8 @@ class User extends Model {
         return 'guest';
     }
 
-    private function updateLastLogin($userId) {
+    private function updateLastLogin($userId)
+    {
         try {
             return parent::update($userId, ['last_login' => date('Y-m-d H:i:s')]);
         } catch (Exception $e) {
@@ -67,7 +73,8 @@ class User extends Model {
         }
     }
 
-    public function getLastLogin($userId) {
+    public function getLastLogin($userId)
+    {
         try {
             $result = parent::findById($userId);
             return $result ? $result['last_login'] : null;
@@ -77,7 +84,8 @@ class User extends Model {
         }
     }
 
-    public function getUserById($id) {
+    public function getUserById($id)
+    {
         try {
             return parent::findById($id);
         } catch (Exception $e) {

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS remember_tokens (
 
 -- Insert admin user with hashed password (default password: Admin@123)
 INSERT INTO users (role, email, display_name, password_hash)
-VALUES ('admin', 'admin@duet.ac.bd', 'System Administrator', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')
+VALUES ('admin', 'admin@duet.ac.bd', 'System Administrator', '$2y$10$ow2ZXumr1d./flbMihP2heYmY8aDd.qUtJeFDJnhv/JJf3D1QmVPS')
 ON DUPLICATE KEY UPDATE
     display_name = VALUES(display_name),
     password_hash = VALUES(password_hash);

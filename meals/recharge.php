@@ -12,7 +12,7 @@ if (!Session::isLoggedIn() || Session::getUserRole() !== 'student') {
 }
 
 // Constants
-const MIN_RECHARGE_AMOUNT = 50;
+define('MIN_RECHARGE_AMOUNT', 50);
 
 // Process recharge request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -23,41 +23,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    $amount = filter_input(INPUT_POST, 'amount', FILTER_VALIDATE_INT);
+    $amount = filter_input(INPUT_POST, 'amount', FILTER_VALIDATE_FLOAT);
 
-    if ($amount && $amount >= MIN_RECHARGE_AMOUNT) {
+    if ($amount !== false && $amount >= MIN_RECHARGE_AMOUNT) {
         try {
             $conn->beginTransaction();
 
-            // Get student profile in one query
-            $student_id = $conn->query(
-                "SELECT id FROM student_profiles WHERE user_id = " .
-                    $conn->quote(Session::getUserId())
-            )->fetchColumn();
+            // Get or create student profile
+            $stmt = $conn->prepare("SELECT id FROM student_profiles WHERE user_id = :user_id");
+            $stmt->bindParam(':user_id', Session::getUserId(), PDO::PARAM_INT);
+            $stmt->execute();
+            $student_id = $stmt->fetchColumn();
 
             if (!$student_id) {
-                throw new Exception('Student profile not found');
+                // Create a default student profile with all required fields
+                $stmt = $conn->prepare("INSERT INTO student_profiles 
+                    (user_id, student_id, full_name, department, year, semester, phone_number,
+                    guardian_name, guardian_phone, room_number) 
+                    VALUES 
+                    (:user_id, CONCAT('TMP', :tmp_id), 'Temporary Name', 'Not Set', 1, 'First',
+                    'Not Set', 'Not Set', 'Not Set', 'Not Set')");
+                $tmp_id = Session::getUserId();
+                $stmt->bindParam(':user_id', Session::getUserId(), PDO::PARAM_INT);
+                $stmt->bindParam(':tmp_id', $tmp_id, PDO::PARAM_INT);
+                $stmt->execute();
+                $student_id = $conn->lastInsertId();
+
+                // Redirect to profile page to complete registration
+                $_SESSION['warning_message'] = 'Please complete your profile information';
+                $conn->commit();
+                header('Location: /HMS/profile/index.php');
+                exit();
             }
 
             // Ensure credit record exists
-            $conn->exec(
+            $stmt = $conn->prepare(
                 "INSERT IGNORE INTO student_meal_credits (student_id, credits) 
-                 VALUES ($student_id, 0)"
+                 VALUES (:student_id, 0)"
             );
+            $stmt->bindParam(':student_id', $student_id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            // Get current balance
+            $stmt = $conn->prepare(
+                "SELECT credits FROM student_meal_credits 
+                 WHERE student_id = :student_id FOR UPDATE"
+            );
+            $stmt->bindParam(':student_id', $student_id, PDO::PARAM_INT);
+            $stmt->execute();
+            $current_credits = $stmt->fetchColumn();
+            $current_credits = $current_credits !== false ? (float)$current_credits : 0.0;
 
             // Update credits
-            $conn->exec(
+            $new_balance = $current_credits + $amount;
+            $stmt = $conn->prepare(
                 "UPDATE student_meal_credits 
-                 SET credits = credits + $amount, 
+                 SET credits = :new_balance, 
                      last_recharge = NOW() 
-                 WHERE student_id = $student_id"
+                 WHERE student_id = :student_id"
             );
+            $stmt->bindParam(':new_balance', $new_balance, PDO::PARAM_STR);
+            $stmt->bindParam(':student_id', $student_id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            // Record transaction
+            $stmt = $conn->prepare(
+                "INSERT INTO credit_transactions 
+                 (student_id, amount, type, balance_after) 
+                 VALUES (:student_id, :amount, 'recharge', :balance_after)"
+            );
+            $stmt->bindParam(':student_id', $student_id, PDO::PARAM_INT);
+            $stmt->bindParam(':amount', $amount, PDO::PARAM_STR);
+            $stmt->bindParam(':balance_after', $new_balance, PDO::PARAM_STR);
+            $stmt->execute();
 
             $conn->commit();
-            $_SESSION['success_message'] = "Successfully added ৳$amount to your meal credits!";
+            $_SESSION['success_message'] = "Successfully added ৳" . $amount . " to your account.";
+        } catch (PDOException $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            $_SESSION['error_message'] = 'Error processing your request. Please try again.';
+            error_log("Recharge Error: " . $e->getMessage());
         } catch (Exception $e) {
-            $conn->rollBack();
-            $_SESSION['error_message'] = 'Error: ' . $e->getMessage();
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            $_SESSION['error_message'] = 'An unexpected error occurred.';
+            error_log("Recharge Error: " . $e->getMessage());
         }
     } else {
         $_SESSION['error_message'] = "Please enter a valid amount (minimum ৳" . MIN_RECHARGE_AMOUNT . ")";
@@ -80,27 +133,28 @@ require_once '../includes/header.php';
                 <div class="card-body">
                     <?php if (isset($_SESSION['error_message'])): ?>
                         <div class="alert alert-danger">
-                            <?= htmlspecialchars($_SESSION['error_message']) ?>
+                            <?= htmlspecialchars($_SESSION['error_message'], ENT_QUOTES, 'UTF-8') ?>
                             <?php unset($_SESSION['error_message']); ?>
                         </div>
                     <?php endif; ?>
 
                     <?php if (isset($_SESSION['success_message'])): ?>
                         <div class="alert alert-success">
-                            <?= htmlspecialchars($_SESSION['success_message']) ?>
+                            <?= htmlspecialchars($_SESSION['success_message'], ENT_QUOTES, 'UTF-8') ?>
                             <?php unset($_SESSION['success_message']); ?>
                         </div>
                     <?php endif; ?>
 
                     <form method="POST">
-                        <input type="hidden" name="csrf_token" value="<?= Session::getCsrfToken() ?>">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Session::getCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
 
                         <div class="mb-3">
                             <label for="amount" class="form-label">Amount (in Taka)</label>
                             <div class="input-group">
                                 <span class="input-group-text">৳</span>
                                 <input type="number" class="form-control" id="amount" name="amount"
-                                    min="<?= MIN_RECHARGE_AMOUNT ?>" step="50" required>
+                                    min="<?= MIN_RECHARGE_AMOUNT ?>" step="50" required
+                                    value="<?= isset($_POST['amount']) ? htmlspecialchars($_POST['amount'], ENT_QUOTES, 'UTF-8') : '' ?>">
                             </div>
                             <div class="form-text">Minimum recharge amount: ৳<?= MIN_RECHARGE_AMOUNT ?></div>
                         </div>
@@ -125,7 +179,9 @@ require_once '../includes/header.php';
     document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.quick-amount').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.getElementById('amount').value = btn.dataset.amount;
+                const amountInput = document.getElementById('amount');
+                amountInput.value = btn.dataset.amount;
+                amountInput.focus();
             });
         });
     });
