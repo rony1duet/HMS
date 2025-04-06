@@ -1,0 +1,16 @@
+{
+  "require": {
+    "league/oauth2-client": "^2.6",
+    "league/oauth2-google": "^3.0",
+    "microsoft/microsoft-graph": "^1.82",
+    "google/apiclient": "^2.12.1"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "allow-plugins": {
+      "php-http/discovery": true
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
