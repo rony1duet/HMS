@@ -16,41 +16,27 @@ CREATE TABLE users (
     last_login TIMESTAMP NULL
 );
 
-
 -- Student profiles with additional information
 CREATE TABLE `student_profiles` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `slug` varchar(100) NOT NULL,
-  `student_id` varchar(20) NOT NULL,
-  `full_name` varchar(100) NOT NULL,
-  `phone_number` varchar(15) DEFAULT NULL,
-  `email` varchar(100) NOT NULL,
-  `date_of_birth` date DEFAULT NULL,
-  `gender` enum('Male','Female','Other') NOT NULL,
-  `blood_group` varchar(5) DEFAULT NULL,
-  `department` varchar(100) NOT NULL,
-  `program` varchar(100) NOT NULL,
-  `year` int(11) NOT NULL,
-  `semester` varchar(20) NOT NULL,
-  `guardian_name` varchar(100) DEFAULT NULL,
-  `guardian_phone` varchar(15) DEFAULT NULL,
-  `hall_name` varchar(100) NOT NULL,
-  `room_number` varchar(10) NOT NULL,
-  `division_id` int(11) DEFAULT NULL,
-  `district_id` int(11) DEFAULT NULL,
-  `upazila_id` int(11) DEFAULT NULL,
-  `village_area` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `student_id` (`student_id`),
-  KEY `slug` (`slug`),
-  KEY `division_id` (`division_id`),
-  KEY `district_id` (`district_id`),
-  KEY `upazila_id` (`upazila_id`),
-  CONSTRAINT `student_profiles_ibfk_1` FOREIGN KEY (`slug`) REFERENCES `users` (`slug`) ON DELETE CASCADE,
-  CONSTRAINT `student_profiles_ibfk_2` FOREIGN KEY (`division_id`) REFERENCES `divisions` (`id`),
-  CONSTRAINT `student_profiles_ibfk_3` FOREIGN KEY (`district_id`) REFERENCES `districts` (`id`),
-  CONSTRAINT `student_profiles_ibfk_4` FOREIGN KEY (`upazila_id`) REFERENCES `upazilas` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    slug VARCHAR(100) NOT NULL,
+    student_id VARCHAR(20) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(15) DEFAULT NULL,
+    email VARCHAR(100) NOT NULL,
+    date_of_birth DATE DEFAULT NULL,
+    gender ENUM('Male','Female','Other') NOT NULL,
+    blood_group VARCHAR(5) DEFAULT NULL,
+    department VARCHAR(100) NOT NULL,
+    program VARCHAR(100) NOT NULL,
+    year INT(11) NOT NULL,
+    semester VARCHAR(20) NOT NULL,
+    guardian_name VARCHAR(100) DEFAULT NULL,
+    guardian_phone VARCHAR(15) DEFAULT NULL,
+    hall_name VARCHAR(100) NOT NULL,
+    room_number VARCHAR(10) NOT NULL,
+    FOREIGN KEY (slug) REFERENCES users(slug) ON DELETE CASCADE
+);
 
 -- Rooms information
 CREATE TABLE rooms (
@@ -161,9 +147,10 @@ CREATE TABLE notices (
 CREATE TABLE staff_profiles (
     id INT PRIMARY KEY AUTO_INCREMENT,
     slug VARCHAR(100) NOT NULL,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
-    designation VARCHAR(100) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    working_hall VARCHAR(100) NOT NULL,
+    working_role VARCHAR(100) NOT NULL,
     phone_number VARCHAR(15),
     joining_date DATE NOT NULL,
     FOREIGN KEY (slug) REFERENCES users(slug) ON DELETE CASCADE

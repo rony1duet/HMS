@@ -97,14 +97,7 @@ class User extends Model
                 'last_login' => null
             ]);
 
-            return [
-                'id' => $userId,
-                'username' => $userData['display_name'],
-                'role' => $role,
-                'email' => $userData['email'],
-                'slug' => $userData['slug'],
-                'created_at' => date('Y-m-d H:i:s')
-            ];
+            return $userId;
         } catch (Exception $e) {
             error_log('Error creating user from Google: ' . $e->getMessage());
             throw new Exception('Failed to create user account');
@@ -127,14 +120,7 @@ class User extends Model
                 'last_login' => null
             ]);
 
-            return [
-                'id' => $userId,
-                'display_name' => $userData['display_name'],
-                'role' => $role,
-                'email' => $userData['email'],
-                'slug' => $userData['slug'],
-                'created_at' => date('Y-m-d H:i:s')
-            ];
+            return $userId;
         } catch (Exception $e) {
             error_log('Error creating user from Microsoft: ' . $e->getMessage());
             throw new Exception('Failed to create user account');

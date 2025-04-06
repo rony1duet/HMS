@@ -1,4 +1,5 @@
 <?php
+$title = 'Provost Dashboard';
 require_once '../includes/session.php';
 require_once '../models/ProvostApproval.php';
 require_once '../config/database.php';

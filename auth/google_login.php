@@ -5,7 +5,7 @@ require_once '../includes/session.php';
 
 Session::init();
 
-if (isset($_SESSION['user_id'])) {
+if (isset($_SESSION['id'])) {
     header('Location: /HMS/dashboard/' . $_SESSION['role'] . '.php');
     exit();
 }
@@ -24,6 +24,7 @@ try {
 
     $authUrl = $client->createAuthUrl();
     $_SESSION['auth_url'] = $authUrl;
+    $_SESSION['getRole'] = $_GET['role'];
 
     header('Location: ' . $authUrl);
     exit();

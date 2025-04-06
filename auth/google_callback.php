@@ -3,6 +3,7 @@ require_once '../vendor/autoload.php';
 require_once '../config/database.php';
 require_once '../includes/session.php';
 require_once '../models/User.php';
+require_once '../models/Staff.php';
 
 Session::init();
 
@@ -36,16 +37,40 @@ try {
         throw new Exception('Failed to fetch user details from Google');
     }
 
+
     $user = new User($conn);
+    $role = $user->determineRole($userDetails->email);
     $userData = [
         'google_id' => $userDetails->id,
         'display_name' => $userDetails->name,
         'email' => $userDetails->email,
-        'role' => $user->determineRole($userDetails->email)
+        'role' => $role
     ];
 
-    if ($userData['role'] === 'provost') {
+    //find email in database in staff_profiles table
+    $staff = new Staff($conn);
+    $email = $staff->findByEmail($userData['email']);
 
+    if ($_SESSION['getRole'] === 'staff' && $role === 'staff' && $email) {
+        $userId = $user->findOrCreateByGoogleId($userData);
+        $slug = $user->findByGoogleId($userData['google_id']);
+
+        if (!$userId) {
+            throw new Exception('Failed to create or update user');
+        }
+
+        Session::setUserData([
+            'id' => $userId,
+            'role' => $userData['role'],
+            'email' => $userData['email'],
+            'display_name' => $userData['display_name'],
+            'slug' => $slug
+        ]);
+
+        header('Location: /HMS/');
+        exit();
+    }
+    if ($_SESSION['getRole'] === 'provost' && $role === 'provost') {
         $userId = $user->findOrCreateByGoogleId($userData);
         $slug = $user->findByGoogleId($userData['google_id']);
 
@@ -64,7 +89,7 @@ try {
         header('Location: /HMS/');
         exit();
     } else {
-        $_SESSION['error'] = 'You are not authorized to access this page.';
+        $_SESSION['error'] = 'You are not authorized to access this page';
         header('Location: /HMS/');
         exit();
     }

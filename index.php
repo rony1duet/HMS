@@ -42,13 +42,13 @@ if (isset($_SESSION['user_id'])) {
                         <!-- Compact Role Selection -->
                         <div class="mb-3">
                             <div class="d-flex justify-content-center gap-2">
-                                <a href="auth/google_login.php" class="btn btn-outline-primary btn-sm flex-grow-1 py-2">
+                                <a href="auth/google_login.php?role=<?= 'provost'; ?>" class="btn btn-outline-primary btn-sm flex-grow-1 py-2">
                                     <i class="fab fa-google me-2"></i>Provost
                                 </a>
                                 <a href="auth/microsoft_login.php" class="btn btn-outline-primary btn-sm flex-grow-1 py-2">
                                     <i class="fab fa-microsoft me-2"></i>Student
                                 </a>
-                                <a href="auth/staff_login.php" class="btn btn-outline-primary btn-sm flex-grow-1 py-2">
+                                <a href="auth/google_login.php?role=<?= 'staff'; ?>" class="btn btn-outline-primary btn-sm flex-grow-1 py-2">
                                     <i class="fas fa-user-tie me-2"></i>Staff
                                 </a>
                             </div>

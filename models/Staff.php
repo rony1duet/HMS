@@ -1,70 +1,77 @@
 <?php
-class Staff {
+class Staff
+{
     private $conn;
     private $table = 'staff_profiles';
 
-    public function __construct($db) {
+    public function __construct($db)
+    {
         $this->conn = $db;
     }
 
-    public function create($userId, $data) {
+    public function create($slug, $data)
+    {
         $query = "INSERT INTO " . $this->table . "
-                (user_id, first_name, last_name, designation, phone_number, joining_date)
+                (slug, full_name, email, working_hall, working_role, phone_number, joining_date)
                 VALUES
-                (:user_id, :first_name, :last_name, :designation, :phone_number, :joining_date)";
+                (:slug, :full_name, :email, :working_hall, :working_role, :phone_number, :joining_date)";
 
         $stmt = $this->conn->prepare($query);
 
-        $stmt->bindParam(':user_id', $userId);
-        $stmt->bindParam(':first_name', $data['first_name']);
-        $stmt->bindParam(':last_name', $data['last_name']);
-        $stmt->bindParam(':designation', $data['designation']);
+        $stmt->bindParam(':slug', $slug);
+        $stmt->bindParam(':full_name', $data['full_name']);
+        $stmt->bindParam(':email', $data['email']);
+        $stmt->bindParam(':working_hall', $data['working_hall']);
+        $stmt->bindParam(':working_role', $data['working_role']);
         $stmt->bindParam(':phone_number', $data['phone_number']);
         $stmt->bindParam(':joining_date', $data['joining_date']);
 
-        if($stmt->execute()) {
+        if ($stmt->execute()) {
             return $this->conn->lastInsertId();
         }
         return false;
     }
 
-    public function getByUserId($userId) {
-        $query = "SELECT * FROM " . $this->table . " WHERE user_id = :user_id";
+    public function getBySlug($slug)
+    {
+        $query = "SELECT * FROM " . $this->table . " WHERE slug = :slug";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':user_id', $userId);
+        $stmt->bindParam(':slug', $slug);
         $stmt->execute();
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function update($id, $data) {
-        $allowedFields = ['first_name', 'last_name', 'designation', 'phone_number'];
+    public function update($slug, $data)
+    {
+        $allowedFields = ['full_name', 'working_hall', 'working_role', 'phone_number'];
         $setFields = [];
-        $params = [':id' => $id];
+        $params = [':slug' => $slug];
 
-        foreach($data as $key => $value) {
-            if(in_array($key, $allowedFields)) {
+        foreach ($data as $key => $value) {
+            if (in_array($key, $allowedFields)) {
                 $setFields[] = "$key = :$key";
                 $params[":$key"] = $value;
             }
         }
 
-        if(empty($setFields)) {
+        if (empty($setFields)) {
             return false;
         }
 
-        $query = "UPDATE " . $this->table . " SET " . implode(', ', $setFields) . " WHERE id = :id";
+        $query = "UPDATE " . $this->table . " SET " . implode(', ', $setFields) . " WHERE slug = :slug";
         $stmt = $this->conn->prepare($query);
 
         return $stmt->execute($params);
     }
 
-    public function getAllStaff($limit = 10, $offset = 0) {
-        $query = "SELECT sp.*, u.email, u.username 
+    public function getAllStaff($limit = 10, $offset = 0)
+    {
+        $query = "SELECT sp.*, u.username 
                 FROM " . $this->table . " sp 
-                JOIN users u ON sp.user_id = u.id 
+                JOIN users u ON sp.slug = u.slug 
                 LIMIT :limit OFFSET :offset";
-        
+
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
@@ -73,19 +80,30 @@ class Staff {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function searchStaff($searchTerm) {
-        $query = "SELECT sp.*, u.email, u.username 
+    public function searchStaff($searchTerm)
+    {
+        $query = "SELECT sp.*, u.username 
                 FROM " . $this->table . " sp 
-                JOIN users u ON sp.user_id = u.id 
-                WHERE sp.first_name LIKE :search 
-                OR sp.last_name LIKE :search 
-                OR sp.designation LIKE :search";
-        
+                JOIN users u ON sp.slug = u.slug 
+                WHERE sp.full_name LIKE :search 
+                OR sp.working_role LIKE :search 
+                OR sp.working_hall LIKE :search";
+
         $searchTerm = "%$searchTerm%";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':search', $searchTerm);
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function findByEmail($email)
+    {
+        $query = "SELECT * FROM " . $this->table . " WHERE email = :email";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?? false;
     }
 }
