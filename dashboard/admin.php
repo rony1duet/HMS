@@ -92,7 +92,7 @@ require_once '../includes/header.php';
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">Pending Provost Approvals</h5>
-                    <a href="/HMS/dashboard/admin_provost_approvals.php" class="btn btn-light btn-sm">View All</a>
+                    <a href="/HMS/actions/admin_provost_approvals.php" class="btn btn-light btn-sm">View All</a>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -120,7 +120,7 @@ require_once '../includes/header.php';
                                         echo '<td>' . htmlspecialchars($approval['email']) . '</td>';
                                         echo '<td>' . date('Y-m-d H:i', strtotime($approval['created_at'])) . '</td>';
                                         echo '<td>';
-                                        echo '<a href="/HMS/dashboard/admin_provost_approvals.php" class="btn btn-primary btn-sm">Review</a>';
+                                        echo '<a href="/HMS/actions/admin_provost_approvals.php" class="btn btn-primary btn-sm">Review</a>';
                                         echo '</td>';
                                         echo '</tr>';
                                     }

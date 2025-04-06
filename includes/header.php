@@ -97,7 +97,7 @@ function showAlert($title, $message, $type)
                             <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'admin.php' ? 'active' : '' ?>" href="/HMS/dashboard/admin.php">Dashboard</a></li>
                             <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'users.php' ? 'active' : '' ?>" href="/HMS/users/">User Management</a></li>
                             <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'rooms.php' ? 'active' : '' ?>" href="/HMS/rooms/">Room Management</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'admin_provost_approvals.php' ? 'active' : '' ?>" href="/HMS/dashboard/admin_provost_approvals.php">Provost Approvals</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'admin_provost_approvals.php' ? 'active' : '' ?>" href="/HMS/actions/admin_provost_approvals.php">Provost Approvals</a></li>
                             <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'notices.php' ? 'active' : '' ?>" href="/HMS/notices/">Notices</a></li>
                             <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'reports.php' ? 'active' : '' ?>" href="/HMS/reports/">Reports</a></li>
                         <?php elseif ($_SESSION['role'] === 'provost'): ?>

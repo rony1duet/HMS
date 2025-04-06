@@ -197,7 +197,7 @@ class User extends Model
         if (strpos($email, '@student.duet.ac.bd') !== false) {
             return 'student';
         }
-        if (strpos($email, '@gmail.com') !== false) { //temporary solution
+        if ($email === 'rony.hossen.duet@gmail.com') { //temporary solution
             return 'provost';
         }
         if ($email === 'admin@duet.ac.bd') {
