@@ -29,7 +29,7 @@ try {
     $token = $client->fetchAccessTokenWithAuthCode($_GET['code']);
     $client->setAccessToken($token['access_token']);
 
-    $googleService = new Google_Service_Oauth2($client);
+    $googleService = new Google\Service\Oauth2($client);
     $userDetails = $googleService->userinfo->get();
 
     if (!$userDetails) {
