@@ -192,7 +192,7 @@ class User extends Model
         }
     }
 
-    private function determineRole($email)
+    public function determineRole($email)
     {
         if (strpos($email, '@student.duet.ac.bd') !== false) {
             return 'student';

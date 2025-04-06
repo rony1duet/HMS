@@ -41,26 +41,33 @@ try {
         'google_id' => $userDetails->id,
         'display_name' => $userDetails->name,
         'email' => $userDetails->email,
-        'role' => 'provost'
+        'role' => $user->determineRole($userDetails->email)
     ];
 
-    $userId = $user->findOrCreateByGoogleId($userData);
-    $slug = $user->findByGoogleId($userData['google_id']);
+    if ($userData['role'] === 'provost') {
 
-    if (!$userId) {
-        throw new Exception('Failed to create or update user');
+        $userId = $user->findOrCreateByGoogleId($userData);
+        $slug = $user->findByGoogleId($userData['google_id']);
+
+        if (!$userId) {
+            throw new Exception('Failed to create or update user');
+        }
+
+        Session::setUserData([
+            'id' => $userId,
+            'role' => $userData['role'],
+            'email' => $userData['email'],
+            'display_name' => $userData['display_name'],
+            'slug' => $slug
+        ]);
+
+        header('Location: /HMS/');
+        exit();
+    } else {
+        $_SESSION['error'] = 'You are not authorized to access this page.';
+        header('Location: /HMS/');
+        exit();
     }
-
-    Session::setUserData([
-        'id' => $userId,
-        'role' => $userData['role'],
-        'email' => $userData['email'],
-        'display_name' => $userData['display_name'],
-        'slug' => $slug
-    ]);
-
-    header('Location: /HMS/');
-    exit();
 } catch (Exception $e) {
     $_SESSION['error'] = $e->getMessage();
     header('Location: /HMS/');
