@@ -98,7 +98,7 @@ try {
         $token = bin2hex(random_bytes(32));
         $expires = date('Y-m-d H:i:s', strtotime('+30 days'));
 
-        $stmt = $conn->prepare('INSERT INTO remember_tokens (user_id, token, expires_at) VALUES (?, ?, ?)');
+        $stmt = $conn->prepare('INSERT INTO remember_tokens (id, token, expires_at) VALUES (?, ?, ?)');
         $stmt->execute([$user['id'], $token, $expires]);
 
         setcookie('remember_token', $token, strtotime('+30 days'), '/', '', true, true);

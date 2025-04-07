@@ -106,7 +106,7 @@ class Student
     {
         $query = "SELECT sp.*, u.email, u.username 
                 FROM " . $this->table . " sp 
-                JOIN users u ON sp.user_id = u.id 
+                JOIN users u ON sp.id = u.id 
                 LIMIT :limit OFFSET :offset";
 
         $stmt = $this->conn->prepare($query);
@@ -121,7 +121,7 @@ class Student
     {
         $query = "SELECT sp.*, u.email, u.username 
                 FROM " . $this->table . " sp 
-                JOIN users u ON sp.user_id = u.id 
+                JOIN users u ON sp.id = u.id 
                 WHERE sp.student_id LIKE :search 
                 OR sp.first_name LIKE :search 
                 OR sp.last_name LIKE :search 
@@ -136,9 +136,9 @@ class Student
     }
     public function getByUserId($userId)
     {
-        $query = "SELECT * FROM " . $this->table . " WHERE slug = (SELECT slug FROM users WHERE id = :user_id)";
+        $query = "SELECT * FROM " . $this->table . " WHERE slug = (SELECT slug FROM users WHERE id = :id)";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':user_id', $userId);
+        $stmt->bindParam(':id', $userId);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }

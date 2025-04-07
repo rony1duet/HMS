@@ -65,7 +65,7 @@ function showAlert($title, $message, $type)
     }
     ?>
 
-    <?php if (isset($_SESSION['user_id'])): ?>
+    <?php if (isset($_SESSION['id'])): ?>
         <nav class="navbar navbar-expand-lg shadow-sm bg-primary navbar-dark">
             <div class="container-fluid">
                 <?php

@@ -5,7 +5,7 @@ require_once '../includes/session.php';
 
 Session::init();
 
-if (isset($_SESSION['user_id'])) {
+if (isset($_SESSION['id'])) {
     header('Location: /HMS/dashboard/' . $_SESSION['role'] . '.php');
     exit();
 }

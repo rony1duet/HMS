@@ -15,9 +15,16 @@ if (!Session::isLoggedIn() || !Session::hasPermission('admin')) {
 // Get JSON data
 $data = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($data['user_slug'])) {
+if (!isset($data['slug']) || !isset($data['hall_id'])) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Missing required data']);
+    exit();
+}
+
+// Validate hall_id is numeric
+if (!is_numeric($data['hall_id'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid hall ID']);
     exit();
 }
 
@@ -26,8 +33,9 @@ $provostApproval = new ProvostApproval($conn);
 try {
     // Update approval status
     $provostApproval->approveProvost(
-        $data['user_slug'],
-        Session::getSlug() // admin's slug as approver
+        $data['slug'],
+        Session::getSlug(), // admin's slug as approver
+        (int)$data['hall_id'] // selected hall ID
     );
 
     echo json_encode(['success' => true]);

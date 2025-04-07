@@ -138,7 +138,7 @@ class Session
             throw new InvalidArgumentException("Invalid user role specified");
         }
 
-        $_SESSION['user_id'] = (int)$userData['id'];
+        $_SESSION['id'] = (int)$userData['id'];
         $_SESSION['role'] = strtolower($userData['role']);
         $_SESSION['email'] = filter_var($userData['email'], FILTER_SANITIZE_EMAIL);
         $_SESSION['display_name'] = htmlspecialchars($userData['display_name'], ENT_QUOTES, 'UTF-8');
@@ -149,7 +149,7 @@ class Session
 
     public static function isLoggedIn(): bool
     {
-        return !empty($_SESSION['user_id']) && self::validateFingerprint();
+        return !empty($_SESSION['id']) && self::validateFingerprint();
     }
 
     public static function getUserRole(): ?string
@@ -159,7 +159,7 @@ class Session
 
     public static function getUserId(): ?int
     {
-        return isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+        return isset($_SESSION['id']) ? (int)$_SESSION['id'] : null;
     }
 
     public static function hasPermission(string $requiredRole): bool

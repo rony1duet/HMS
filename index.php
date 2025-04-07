@@ -10,7 +10,7 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-if (isset($_SESSION['user_id'])) {
+if (isset($_SESSION['id'])) {
     header('Location: /HMS/dashboard/' . $_SESSION['role'] . '.php');
     exit();
 }

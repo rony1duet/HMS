@@ -14,7 +14,7 @@ if (!Session::isLoggedIn() || Session::getUserRole() !== 'student') {
 }
 
 $user = new User($conn);
-$userData = $user->getUserById($_SESSION['user_id']);
+$userData = $user->getUserById($_SESSION['id']);
 $id = $userData['id'];
 
 if ($userData['role'] === 'student') {
@@ -327,7 +327,7 @@ require_once '../../includes/header.php';
                                         <option value="">Select District</option>
                                         <?php if (!empty($districts)): foreach ($districts as $district): ?>
                                                 <option value="<?= $district['id'] ?>" <?= ($studentData['district_id'] ?? '') == $district['id'] ? 'selected' : '' ?>>
-                                                    <?= $district['name'] ?>
+                                                    <?= $district['name'] ?> (<?= $district['bn_name'] ?>)
                                                 </option>
                                         <?php endforeach;
                                         endif; ?>
@@ -339,7 +339,7 @@ require_once '../../includes/header.php';
                                         <option value="">Select Upazila</option>
                                         <?php if (!empty($upazilas)): foreach ($upazilas as $upazila): ?>
                                                 <option value="<?= $upazila['id'] ?>" <?= ($studentData['upazila_id'] ?? '') == $upazila['id'] ? 'selected' : '' ?>>
-                                                    <?= $upazila['name'] ?>
+                                                    <?= $upazila['name'] ?> (<?= $upazila['bn_name'] ?>)
                                                 </option>
                                         <?php endforeach;
                                         endif; ?>

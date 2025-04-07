@@ -7,11 +7,11 @@ ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NULL;
 -- Create remember_tokens table for "Remember Me" functionality
 CREATE TABLE IF NOT EXISTS remember_tokens (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_slug VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) NOT NULL,
     token VARCHAR(64) NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_slug) REFERENCES users(slug) ON DELETE CASCADE,
+    FOREIGN KEY (slug) REFERENCES users(slug) ON DELETE CASCADE,
     UNIQUE KEY unique_token (token)
 );
 

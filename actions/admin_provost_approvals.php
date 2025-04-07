@@ -51,12 +51,12 @@ require_once '../includes/header.php';
                                             <td>
                                                 <button type="button"
                                                     class="btn btn-sm btn-success me-2"
-                                                    onclick="approveProvost('<?php echo $approval["user_slug"]; ?>')">
+                                                    onclick="showApproveModal('<?php echo $approval["slug"]; ?>')">
                                                     <i class="fas fa-check me-1"></i>Approve
                                                 </button>
                                                 <button type="button"
                                                     class="btn btn-sm btn-danger"
-                                                    onclick="showRejectModal('<?php echo $approval["user_slug"]; ?>')">
+                                                    onclick="showRejectModal('<?php echo $approval["slug"]; ?>')">
                                                     <i class="fas fa-times me-1"></i>Reject
                                                 </button>
                                             </td>
@@ -72,6 +72,39 @@ require_once '../includes/header.php';
     </div>
 </div>
 
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Approve Provost</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="approveForm">
+                    <input type="hidden" id="approveUserSlug" name="slug">
+                    <div class="mb-3">
+                        <label for="hallSelect" class="form-label">Select Hall</label>
+                        <select class="form-select" id="hallSelect" name="hall_id" required>
+                            <option value="">Choose a hall...</option>
+                            <?php
+                            $halls = $provostApproval->getAvailableHalls();
+                            foreach ($halls as $hall) {
+                                echo '<option value="' . $hall['id'] . '">' . htmlspecialchars($hall['name']) . '</option>';
+                            }
+                            ?>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="approveProvost()">Approve</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Reject Modal -->
 <div class="modal fade" id="rejectModal" tabindex="-1">
     <div class="modal-dialog">
@@ -82,7 +115,7 @@ require_once '../includes/header.php';
             </div>
             <div class="modal-body">
                 <form id="rejectForm">
-                    <input type="hidden" id="rejectUserSlug" name="user_slug">
+                    <input type="hidden" id="rejectUserSlug" name="slug">
                     <div class="mb-3">
                         <label for="rejectionReason" class="form-label">Rejection Reason</label>
                         <textarea class="form-control" id="rejectionReason" name="reason" rows="3" required></textarea>
@@ -98,31 +131,45 @@ require_once '../includes/header.php';
 </div>
 
 <script>
-    function approveProvost(userSlug) {
-        if (confirm('Are you sure you want to approve this provost?')) {
-            fetch('/HMS/actions/approve_provost.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        user_slug: userSlug
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert(data.message || 'Failed to approve provost');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while processing your request');
-                });
-        }
+    function showApproveModal(userSlug) {
+        document.getElementById('approveUserSlug').value = userSlug;
+        new bootstrap.Modal(document.getElementById('approveModal')).show();
     }
+
+    function approveProvost() {
+        const form = document.getElementById('approveForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const userSlug = document.getElementById('approveUserSlug').value;
+        const hallId = document.getElementById('hallSelect').value;
+
+        fetch('/HMS/actions/approve_provost.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    slug: userSlug,
+                    hall_id: hallId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to approve provost');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while processing your request');
+            });
+    }
+
 
     function showRejectModal(userSlug) {
         document.getElementById('rejectUserSlug').value = userSlug;
@@ -144,7 +191,7 @@ require_once '../includes/header.php';
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    user_slug: userSlug,
+                    slug: userSlug,
                     reason: reason
                 })
             })

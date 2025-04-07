@@ -15,7 +15,7 @@ if (!Session::isLoggedIn() || !Session::hasPermission('admin')) {
 // Get JSON data
 $data = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($data['user_slug']) || !isset($data['reason'])) {
+if (!isset($data['slug']) || !isset($data['reason'])) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Missing required data']);
     exit();
@@ -26,7 +26,7 @@ $provostApproval = new ProvostApproval($conn);
 try {
     // Update approval status with rejection reason
     $provostApproval->rejectProvost(
-        $data['user_slug'],
+        $data['slug'],
         $data['reason'],
         Session::getSlug() // admin's slug as rejector
     );
