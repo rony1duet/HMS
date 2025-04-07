@@ -101,6 +101,24 @@ require_once '../includes/header.php';
                     </div>
                 </div>
             </div>
+
+            <div class="col-md-6 col-xl-3 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Staff Management</h6>
+                                <a href="provost/staff_management.php" class="btn btn-primary mt-2">
+                                    <i class="fas fa-user-plus"></i> Add Staff
+                                </a>
+                            </div>
+                            <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                                <i class="fas fa-users-cog text-info fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="col-md-6 col-xl-3 mb-4">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">

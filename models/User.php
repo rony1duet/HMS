@@ -10,12 +10,31 @@ class User extends Model
     public function findOrCreateByGoogleId($userData)
     {
         try {
+            // First check if user exists with this Google ID
             $stmt = $this->executeQuery(
                 "SELECT id FROM {$this->table} WHERE google_id = :google_id",
                 [':google_id' => $userData['google_id']]
             );
 
             if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $this->updateLastLogin($row['id']);
+                return $row['id'];
+            }
+
+            // If not found by Google ID, check by email for existing user
+            $stmt = $this->executeQuery(
+                "SELECT id, role FROM {$this->table} WHERE email = :email",
+                [':email' => $userData['email']]
+            );
+
+            if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                // Only update Google ID for staff users
+                if ($row['role'] === 'staff') {
+                    $this->executeQuery(
+                        "UPDATE {$this->table} SET google_id = :google_id WHERE id = :id",
+                        [':google_id' => $userData['google_id'], ':id' => $row['id']]
+                    );
+                }
                 $this->updateLastLogin($row['id']);
                 return $row['id'];
             }
@@ -190,6 +209,31 @@ class User extends Model
             return 'admin';
         } else {
             return 'staff';
+        }
+    }
+
+    public function findByEmail($email)
+    {
+        try {
+            $stmt = $this->executeQuery(
+                "SELECT * FROM {$this->table} WHERE email = :email",
+                [':email' => $email]
+            );
+
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log('Error finding user by email: ' . $e->getMessage());
+            throw new Exception('Failed to find user');
+        }
+    }
+
+    public function updateGoogleId($slug, $googleId)
+    {
+        try {
+            return parent::update($slug, ['google_id' => $googleId], 'slug');
+        } catch (Exception $e) {
+            error_log('Error updating Google ID: ' . $e->getMessage());
+            throw new Exception('Failed to update Google ID');
         }
     }
 

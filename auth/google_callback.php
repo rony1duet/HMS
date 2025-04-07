@@ -47,52 +47,78 @@ try {
         'role' => $role
     ];
 
-    //find email in database in staff_profiles table
+    // Find existing user by email
+    $existingUser = $user->findByEmail($userData['email']);
+
+    // Check if user exists in staff_profiles table
     $staff = new Staff($conn);
-    $email = $staff->findByEmail($userData['email']);
+    $isStaffMember = $staff->isExistInStaff($userData['email']);
 
-    if ($_SESSION['getRole'] === 'staff' && $role === 'staff' && $email) {
-        $userId = $user->findOrCreateByGoogleId($userData);
-        $slug = $user->findByGoogleId($userData['google_id']);
-
-        if (!$userId) {
-            throw new Exception('Failed to create or update user');
-        }
-
-        Session::setUserData([
-            'id' => $userId,
-            'role' => $userData['role'],
-            'email' => $userData['email'],
-            'display_name' => $userData['display_name'],
-            'slug' => $slug
-        ]);
-
-        header('Location: /HMS/');
-        exit();
+    // If user exists, update their google_id
+    if ($existingUser) {
+        $user->updateGoogleId($existingUser['slug'], $userData['google_id']);
+        $userData['role'] = $existingUser['role'];
+        $role = $existingUser['role'];
     }
-    if ($_SESSION['getRole'] === 'provost' && $role === 'provost') {
-        $userId = $user->findOrCreateByGoogleId($userData);
-        $slug = $user->findByGoogleId($userData['google_id']);
 
-        if (!$userId) {
-            throw new Exception('Failed to create or update user');
+    // Check if user is trying to login as staff
+    if ($_SESSION['getRole'] === 'staff') {
+        // Verify if user exists in staff_profiles
+        if ($isStaffMember) {
+            $userId = $user->findOrCreateByGoogleId($userData);
+            $slug = $user->findByGoogleId($userData['google_id']);
+
+            if (!$userId) {
+                throw new Exception('Failed to create or update user');
+            }
+
+            Session::setUserData([
+                'id' => $userId,
+                'role' => $userData['role'],
+                'email' => $userData['email'],
+                'display_name' => $userData['display_name'],
+                'slug' => $slug
+            ]);
+
+            header('Location: /HMS/');
+            exit();
+        } else {
+            $_SESSION['error'] = 'You are not a staff member';
+            header('Location: /HMS/');
+            exit();
         }
-
-        Session::setUserData([
-            'id' => $userId,
-            'role' => $userData['role'],
-            'email' => $userData['email'],
-            'display_name' => $userData['display_name'],
-            'slug' => $slug
-        ]);
-
-        header('Location: /HMS/');
-        exit();
-    } else {
-        $_SESSION['error'] = 'You are not authorized to access this page';
-        header('Location: /HMS/');
-        exit();
     }
+
+    // Check if user is trying to login as provost
+    if ($_SESSION['getRole'] === 'provost') {
+        if ($role === 'provost') {
+            $userId = $user->findOrCreateByGoogleId($userData);
+            $slug = $user->findByGoogleId($userData['google_id']);
+
+            if (!$userId) {
+                throw new Exception('Failed to create or update user');
+            }
+
+            Session::setUserData([
+                'id' => $userId,
+                'role' => $userData['role'],
+                'email' => $userData['email'],
+                'display_name' => $userData['display_name'],
+                'slug' => $slug
+            ]);
+
+            header('Location: /HMS/');
+            exit();
+        } else {
+            $_SESSION['error'] = 'You are not a provost';
+            header('Location: /HMS/');
+            exit();
+        }
+    }
+
+    $_SESSION['error'] = 'You are not authorized to access this page';
+    header('Location: /HMS/');
+    exit();
 } catch (Exception $e) {
     $_SESSION['error'] = $e->getMessage();
     header('Location: /HMS/');

@@ -5,7 +5,7 @@ require_once '../includes/Session.php';
 
 Session::init();
 
-if (!Session::isLoggedIn() || !Session::hasPermission('staff')) {
+if (!Session::isLoggedIn() || Session::getUserRole() !== 'staff') {
     header('Location: /HMS/');
     exit();
 }
