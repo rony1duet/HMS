@@ -1,8 +1,8 @@
 <?php
 $title = 'Staff Management';
-require_once '../../config/database.php';
-require_once '../../includes/session.php';
-require_once '../../models/Staff.php';
+require_once '../config/database.php';
+require_once '../includes/session.php';
+require_once '../models/Staff.php';
 
 Session::init();
 
@@ -79,7 +79,7 @@ try {
     $error_message = $e->getMessage();
 }
 
-require_once '../../includes/header.php';
+require_once '../includes/header.php';
 ?>
 
 <div class="container-fluid py-4">
@@ -182,4 +182,4 @@ require_once '../../includes/header.php';
     })()
 </script>
 
-<?php require_once '../../includes/footer.php'; ?>
+<?php require_once '../includes/footer.php'; ?>

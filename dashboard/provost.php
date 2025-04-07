@@ -108,7 +108,7 @@ require_once '../includes/header.php';
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="text-muted mb-2">Staff Management</h6>
-                                <a href="provost/staff_management.php" class="btn btn-primary mt-2">
+                                <a href="/HMS/actions/staff_management.php" class="btn btn-primary mt-2">
                                     <i class="fas fa-user-plus"></i> Add Staff
                                 </a>
                             </div>
