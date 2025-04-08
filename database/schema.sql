@@ -35,6 +35,7 @@ CREATE TABLE `student_profiles` (
     guardian_phone VARCHAR(15) DEFAULT NULL,
     hall_name VARCHAR(100) NOT NULL,
     room_number VARCHAR(10) NOT NULL,
+    profile_image_uri VARCHAR(10000000) DEFAULT NULL,
     FOREIGN KEY (slug) REFERENCES users(slug) ON DELETE CASCADE
 );
 

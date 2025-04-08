@@ -5,6 +5,7 @@ class Student
     private $table = 'student_profiles';
     private $validBloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
     private $validGenders = ['Male', 'Female', 'Other'];
+    private $defaultProfileImage = '/assets/images/default-profile.png';
 
     public function __construct($db)
     {
@@ -17,12 +18,12 @@ class Student
                 (slug, student_id, full_name, email, phone_number, date_of_birth,
                 gender, blood_group, department, program, year, semester,
                 guardian_name, guardian_phone, hall_name, room_number,
-                division_id, district_id, upazila_id, village_area)
+                division_id, district_id, upazila_id, village_area, profile_image_uri)
                 VALUES
                 (:slug, :student_id, :full_name, :email, :phone_number, :date_of_birth,
                 :gender, :blood_group, :department, :program, :year, :semester,
                 :guardian_name, :guardian_phone, :hall_name, :room_number,
-                :division_id, :district_id, :upazila_id, :village_area)";
+                :division_id, :district_id, :upazila_id, :village_area, :profile_image_uri)";
 
         try {
             $stmt = $this->conn->prepare($query);
@@ -46,6 +47,8 @@ class Student
             $stmt->bindParam(':district_id', $data['district_id']);
             $stmt->bindParam(':upazila_id', $data['upazila_id']);
             $stmt->bindParam(':village_area', $data['village_area']);
+            $profileImageUri = $data['profile_image_uri'] ?? $this->defaultProfileImage;
+            $stmt->bindParam(':profile_image_uri', $profileImageUri);
 
             if ($stmt->execute()) {
                 return $this->conn->lastInsertId();
@@ -80,7 +83,8 @@ class Student
             'village_area',
             'guardian_name',
             'guardian_phone',
-            'room_number'
+            'room_number',
+            'profile_image_uri'
         ];
         $setFields = [];
         $params = [':id' => intval($id)];
@@ -269,7 +273,8 @@ class Student
                     division_id = :division_id,
                     district_id = :district_id,
                     upazila_id = :upazila_id,
-                    village_area = :village_area
+                    village_area = :village_area,
+                    profile_image_uri = :profile_image_uri
                     WHERE slug = :slug" :
                 "INSERT INTO " . $this->table . "
                     (slug, student_id, full_name, email, phone_number, date_of_birth,
@@ -280,7 +285,7 @@ class Student
                     (:slug, :student_id, :full_name, :email, :phone_number, :date_of_birth,
                     :gender, :blood_group, :department, :program, :year, :semester,
                     :guardian_name, :guardian_phone, :hall_name, :room_number,
-                    :division_id, :district_id, :upazila_id, :village_area)";
+                    :division_id, :district_id, :upazila_id, :village_area, :profile_image_uri)";
 
             $stmt = $this->conn->prepare($query);
 
@@ -304,6 +309,8 @@ class Student
             $stmt->bindParam(':district_id', $data['district_id']);
             $stmt->bindParam(':upazila_id', $data['upazila_id']);
             $stmt->bindParam(':village_area', $data['village_area']);
+            $profileImageUri = $data['profile_image_uri'] ?? $this->defaultProfileImage;
+            $stmt->bindParam(':profile_image_uri', $profileImageUri);
 
             if ($stmt->execute()) {
                 // Update profile_status in users table
