@@ -9,13 +9,23 @@ $user = new User($conn);
 
 $profileStatus = $user->getProfileStatus($_SESSION['slug']);
 
-if ($profileStatus === 'not_updated') {
-    header('Location: /HMS/profiles/student/');
+if (!Session::isLoggedIn() || !Session::hasPermission('student')) {
+    header('Location: /HMS/');
     exit();
 }
 
-if (!Session::isLoggedIn() || Session::getUserRole() !== 'student') {
-    header('Location: /HMS/');
+try {
+    $profileStatus = $user->getProfileStatus($_SESSION['slug'] ?? '');
+
+    // Redirect if profile needs updating
+    if ($profileStatus === 'not_updated') {
+        header('Location: /HMS/profiles/student/');
+        exit();
+    }
+} catch (Exception $e) {
+    // Log the error and redirect to error page or show message
+    error_log("Profile status check failed: " . $e->getMessage());
+    header('Location: /HMS/error.php');
     exit();
 }
 

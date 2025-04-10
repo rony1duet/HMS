@@ -407,25 +407,27 @@ require_once '../includes/header.php';
                     this.updateCredits();
                 }
             } else {
-                // Schedule meal - check both real and virtual credits
-                const totalAvailableCredits = this.totalCredits + this.virtualCredits;
-                const creditsAfterSelection = totalAvailableCredits - (this.getNetSelectedCount() + 1) * this.mealCost;
-
-                if (creditsAfterSelection < this.minimumBalance) {
-                    this.showAlert("Insufficient balance for selecting this date.");
-                    return;
-                }
-
+                // Always allow deselection regardless of balance
                 if (this.selectedDates.has(day)) {
                     this.selectedDates.delete(day);
                     cell.innerHTML = `<div class="p-1"><strong>${day}</strong></div>`;
+                    this.updateCredits();
                 } else {
+                    // Check balance only when selecting new days
+                    const totalAvailableCredits = this.totalCredits + this.virtualCredits;
+                    const creditsAfterSelection = totalAvailableCredits - (this.getNetSelectedCount() + 1) * this.mealCost;
+
+                    if (creditsAfterSelection < this.minimumBalance) {
+                        this.showAlert("Insufficient balance for selecting this date.");
+                        return;
+                    }
+
                     this.selectedDates.add(day);
                     cell.innerHTML = `<div class="p-1 ${isToday ? "text-success" : "text-success"}">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>`;
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>`;
+                    this.updateCredits();
                 }
-                this.updateCredits();
             }
         }
 
@@ -516,7 +518,7 @@ require_once '../includes/header.php';
                 this.selectedDates.add(day);
                 const cell = this.calendarBody.querySelector(`td[data-date="${day}"]`);
                 if (cell) {
-                    cell.innerHTML = `<div class="p-1 ${isToday ? "text-success" : "text-primary"}">
+                    cell.innerHTML = `<div class="p-1 ${isToday ? "text-success" : "text-success"}">
                     <i class="fa-solid fa-circle-check"></i>
                 </div>`;
                 }

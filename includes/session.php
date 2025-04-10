@@ -172,13 +172,13 @@ class Session
             return false;
         }
         $roleHierarchy = [
-            'admin' => ['admin'],
-            'provost' => ['admin', 'provost'],
-            'staff' => ['admin', 'provost', 'staff'],
-            'student' => ['admin', 'provost', 'staff', 'student']
+            'admin' => 'admin',
+            'provost' => 'provost',
+            'staff' => 'staff',
+            'student' => 'student'
         ];
-        return isset($roleHierarchy[$requiredRole]) &&
-            in_array($userRole, $roleHierarchy[$requiredRole], true);
+        return isset($roleHierarchy[$userRole]) &&
+            $roleHierarchy[$userRole] === $requiredRole;
     }
 
     public static function getRoleHierarchy(): array

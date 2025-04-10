@@ -119,7 +119,7 @@ function showAlert($title, $message, $type)
                                 <i class="fas fa-user me-1"></i> <?= $_SESSION['display_name'] ?>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="/HMS/profiles/student/"><i class="fas fa-user-circle me-2"></i>Profile</a></li>
+                                <li><a class="dropdown-item" href="/HMS/profiles/<?php echo $_SESSION['role'] ?>/"><i class="fas fa-user me-2"></i>Profile</a></li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>

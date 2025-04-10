@@ -1,12 +1,12 @@
 <?php
-require_once '../includes/session.php';
+require_once '../includes/Session.php';
 require_once '../models/ProvostApproval.php';
 require_once '../config/database.php';
 
 Session::init();
 
 // Check if user is logged in and has admin role
-if (!Session::isLoggedIn() || !Session::hasPermission('admin')) {
+if (!Session::isLoggedIn() || !Session::getUserRole() == 'admin') {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();

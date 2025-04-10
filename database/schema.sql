@@ -156,3 +156,16 @@ CREATE TABLE staff_profiles (
     joining_date DATE NOT NULL,
     FOREIGN KEY (slug) REFERENCES users(slug) ON DELETE CASCADE
 );
+
+-- Admin profiles with administrative information
+CREATE TABLE admin_profiles (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    slug VARCHAR(100) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(15),
+    designation VARCHAR(100) NOT NULL,
+    joining_date DATE NOT NULL,
+    profile_image_uri VARCHAR(10000000) DEFAULT NULL,
+    FOREIGN KEY (slug) REFERENCES users(slug) ON DELETE CASCADE
+);

@@ -1,13 +1,13 @@
 <?php
 $title = 'Provost Dashboard';
-require_once '../includes/session.php';
+require_once '../includes/Session.php';
 require_once '../models/ProvostApproval.php';
 require_once '../config/database.php';
 
 Session::init();
 
 // Check if user is logged in and has provost role
-if (!Session::isLoggedIn() || Session::getUserRole() !== 'provost') {
+if (!Session::isLoggedIn() || !Session::hasPermission('provost')) {
     header('Location: /HMS/');
     exit();
 }

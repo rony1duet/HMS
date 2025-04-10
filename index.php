@@ -1,7 +1,7 @@
 <?php
 $title = "DUET HMS | Login to continue";
 require_once 'config/database.php';
-require_once 'includes/session.php';
+require_once 'includes/Session.php';
 require_once 'includes/header.php';
 
 Session::init();

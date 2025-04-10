@@ -2,11 +2,20 @@
 $title = 'Admin Dashboard';
 require_once '../config/database.php';
 require_once '../includes/Session.php';
+require_once '../models/User.php';
 
 Session::init();
+$user = new User($conn);
+
+$profileStatus = $user->getProfileStatus($_SESSION['slug']);
 
 if (!Session::isLoggedIn() || !Session::hasPermission('admin')) {
     header('Location: /HMS/');
+    exit();
+}
+
+if ($profileStatus === 'not_updated') {
+    header('Location: /HMS/profiles/admin/');
     exit();
 }
 
