@@ -48,10 +48,8 @@ if ($userData['role'] === 'student') {
     $allHalls = array_merge($maleHalls, $femaleHalls);
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
         try {
             $data = [
-                'profile_image_uri' => $_POST['cropped_image_data'] ?? '',
                 'student_id' => $_POST['student_id'] ?? '',
                 'full_name' => $_POST['full_name'] ?? '',
                 'email' => $userData['email'],
@@ -72,72 +70,73 @@ if ($userData['role'] === 'student') {
                 'hall_name' => $_POST['hall_name'] ?? '',
                 'room_number' => $_POST['room_number'] ?? ''
             ];
-
-            // Validate required fields
+    
+            // Validate required fields (excluding profile image)
+            $requiredFields = [
+                'student_id', 'full_name', 'date_of_birth', 'gender', 'blood_group',
+                'department', 'program', 'year', 'semester', 'phone_number',
+                'division_id', 'district_id', 'upazila_id', 'village_area',
+                'guardian_name', 'guardian_phone', 'hall_name', 'room_number'
+            ];
+            
             $errors = [];
-            foreach ($data as $key => $value) {
-                if (empty($value)) {
-                    $errors[] = ucfirst(str_replace('_', ' ', $key)) . ' is required.';
+            foreach ($requiredFields as $field) {
+                if (empty($data[$field])) {
+                    $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is required.';
                 }
             }
-
+    
             // Validate phone numbers
             if (!empty($data['phone_number']) && !preg_match('/^\+?[0-9]{10,13}$/', $data['phone_number'])) {
                 $errors[] = 'Invalid phone number format.';
             }
-
+    
             if (!empty($data['guardian_phone']) && !preg_match('/^\+?[0-9]{10,13}$/', $data['guardian_phone'])) {
                 $errors[] = 'Invalid guardian phone number format.';
             }
-
+    
             // Validate hall selection based on gender
             $selectedGender = $data['gender'] ?? '';
             $selectedHall = $data['hall_name'] ?? '';
-
+    
             if ($selectedGender === 'Female' && !in_array($selectedHall, $femaleHalls)) {
                 $errors[] = 'Female students must select Madam Curie Hall.';
             } elseif ($selectedGender !== 'Female' && in_array($selectedHall, $femaleHalls)) {
                 $errors[] = 'Male students cannot select Madam Curie Hall.';
             }
-
+    
             // Handle profile picture upload
-            if (!empty($_POST['cropped_image_data']) || !empty($_FILES['profile_picture']['name'])) {
-                $profilePictureData = null;
-
-                if (!empty($_POST['cropped_image_data'])) {
-                    // Use the cropped image data directly as data URI
-                    $profilePictureData = $_POST['cropped_image_data'];
-
-                    // Validate it's a proper data URI
-                    if (!preg_match('/^data:image\/(png|jpeg|jpg|gif);base64,/', $profilePictureData)) {
-                        $errors[] = 'Invalid image data format.';
-                    }
+            if (!empty($_POST['cropped_image_data'])) {
+                // Use the cropped image data directly as data URI
+                $profilePictureData = $_POST['cropped_image_data'];
+    
+                // Validate it's a proper data URI
+                if (!preg_match('/^data:image\/(png|jpeg|jpg|gif);base64,/', $profilePictureData)) {
+                    $errors[] = 'Invalid image data format.';
                 } else {
-                    // Handle regular file upload
-                    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-                    $fileType = $_FILES['profile_picture']['type'];
-
-                    if (!in_array($fileType, $allowedTypes)) {
-                        $errors[] = 'Only JPG, PNG, and GIF files are allowed.';
-                    } elseif ($_FILES['profile_picture']['size'] > 5 * 1024 * 1024) {
-                        $errors[] = 'File size must be less than 5MB.';
-                    } else {
-                        // Convert the uploaded file to data URI
-                        $fileContent = file_get_contents($_FILES['profile_picture']['tmp_name']);
-                        $mimeType = mime_content_type($_FILES['profile_picture']['tmp_name']);
-                        $base64 = base64_encode($fileContent);
-                        $profilePictureData = 'data:' . $mimeType . ';base64,' . $base64;
-                    }
+                    $data['profile_image_uri'] = $profilePictureData;
                 }
-
-                $data['profile_picture'] = $profilePictureData;
+            } elseif (!empty($_FILES['profile_picture']['name'])) {
+                // Handle regular file upload
+                $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                $fileType = $_FILES['profile_picture']['type'];
+    
+                if (!in_array($fileType, $allowedTypes)) {
+                    $errors[] = 'Only JPG, PNG, and GIF files are allowed.';
+                } elseif ($_FILES['profile_picture']['size'] > 5 * 1024 * 1024) {
+                    $errors[] = 'File size must be less than 5MB.';
+                } else {
+                    // Convert the uploaded file to data URI
+                    $fileContent = file_get_contents($_FILES['profile_picture']['tmp_name']);
+                    $mimeType = mime_content_type($_FILES['profile_picture']['tmp_name']);
+                    $base64 = base64_encode($fileContent);
+                    $data['profile_image_uri'] = 'data:' . $mimeType . ';base64,' . $base64;
+                }
+            } else {
+                // Keep the existing profile image if no new one is uploaded
+                $data['profile_image_uri'] = $studentData['profile_image_uri'] ?? '';
             }
-
-            // Validate profile picture is required for new profiles
-            if (empty($userData['profile_picture']) && empty($_FILES['profile_picture']['name']) && empty($_POST['cropped_image_data'])) {
-                $errors[] = 'Profile picture is required.';
-            }
-
+    
             if (empty($errors)) {
                 if ($student->updateProfile($_SESSION['slug'], $data)) {
                     $_SESSION['success'] = 'Profile updated successfully.';
@@ -150,7 +149,7 @@ if ($userData['role'] === 'student') {
         } catch (Exception $e) {
             $errors[] = $e->getMessage();
         }
-
+    
         if (!empty($errors)) {
             $_SESSION['errors'] = $errors;
         }

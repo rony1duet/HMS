@@ -180,9 +180,11 @@ class Student
                 }
             }
 
-            // Validate year range
-            if (!in_array($data['year'], [1, 2, 3, 4, 5])) {
-                throw new Exception("Year must be between 1 and 5");
+            // Validate year range based on program
+            $validYears = $data['program'] === 'B. Arch' ? [1, 2, 3, 4, 5] : [1, 2, 3, 4];
+            if (!in_array($data['year'], $validYears)) {
+                $maxYear = $data['program'] === 'B. Arch' ? 5 : 4;
+                throw new Exception("Year must be between 1 and {$maxYear} for {$data['program']}");
             }
 
             // Validate semester type
@@ -280,7 +282,7 @@ class Student
                     (slug, student_id, full_name, email, phone_number, date_of_birth,
                     gender, blood_group, department, program, year, semester,
                     guardian_name, guardian_phone, hall_name, room_number,
-                    division_id, district_id, upazila_id, village_area)
+                    division_id, district_id, upazila_id, village_area, profile_image_uri)
                     VALUES
                     (:slug, :student_id, :full_name, :email, :phone_number, :date_of_birth,
                     :gender, :blood_group, :department, :program, :year, :semester,

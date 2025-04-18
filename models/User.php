@@ -4,7 +4,6 @@ require_once __DIR__ . '/Model.php';
 class User extends Model
 {
     protected $table = 'users';
-    private $defaultProfileImage = '/assets/images/default-profile.png';
 
     // AUTHENTICATION METHODS
 
@@ -113,8 +112,6 @@ class User extends Model
                 'display_name' => $userData['display_name'],
                 'slug' => $userData['slug'],
                 'role' => $role,
-                'profile_image_uri' => $userData['profile_image_uri'] ?? $this->defaultProfileImage,
-                'profile_image_uri' => $userData['profile_image_uri'] ?? $this->defaultProfileImage,
                 'created_at' => date('Y-m-d H:i:s'),
                 'last_login' => null
             ]);
@@ -138,8 +135,6 @@ class User extends Model
                 'display_name' => $userData['display_name'],
                 'slug' => $userData['slug'],
                 'role' => $role,
-                'profile_image_uri' => $userData['profile_image_uri'] ?? $this->defaultProfileImage,
-                'profile_image_uri' => $userData['profile_image_uri'] ?? $this->defaultProfileImage,
                 'created_at' => date('Y-m-d H:i:s'),
                 'last_login' => null
             ]);
