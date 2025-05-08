@@ -1,6 +1,7 @@
 /vendor/
 /composer.phar
 /composer-setup.php
+/uploads
 
 # Environment files
 .env

@@ -200,6 +200,9 @@ require_once '../includes/header.php';
                             <a href="#" class="btn btn-warning">
                                 <i class="fas fa-exclamation-circle me-2"></i>View Complaints
                             </a>
+                            <a href="/HMS/dashboard/notice_management.php" class="btn btn-info">
+                                <i class="fas fa-bullhorn me-2"></i>Manage Notices
+                            </a>
                         </div>
                     </div>
                 </div>

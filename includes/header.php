@@ -88,28 +88,48 @@ function showAlert($title, $message, $type)
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto">
                         <?php if ($_SESSION['role'] === 'student'): ?>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'student.php' ? 'active' : '' ?>" href="/HMS/dashboard/student.php">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'index.php' && str_contains($_SERVER['PHP_SELF'], '/meals/') ? 'active' : '' ?>" href="/HMS/meals/">Meals</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'bills.php' ? 'active' : '' ?>" href="/HMS/bills/">Bills</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'complaints.php' ? 'active' : '' ?>" href="/HMS/complaints/">Complaints</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'notices.php' ? 'active' : '' ?>" href="/HMS/notices/">Notices</a></li>
+                            <?php
+                            $currentPath = $_SERVER['PHP_SELF'];
+                            $currentPage = basename($currentPath);
+                            $currentDir = dirname($currentPath);
+                            ?>
+                            <li class="nav-item"><a class="nav-link text-white <?= $currentPage === 'student.php' && $currentDir === '/HMS/dashboard' ? 'active' : '' ?>" href="/HMS/dashboard/student.php">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/meals') === 0 ? 'active' : '' ?>" href="/HMS/meals/">Meals</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/bills') === 0 ? 'active' : '' ?>" href="/HMS/bills/">Bills</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= ($currentPage === 'student_notices.php' || $currentPage === 'view_notice.php') && $currentDir === '/HMS/dashboard' ? 'active' : '' ?>" href="/HMS/dashboard/student_notices.php">Notices</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/complaints') === 0 ? 'active' : '' ?>" href="/HMS/complaints/">Complaints</a></li>
                         <?php elseif ($_SESSION['role'] === 'admin'): ?>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'admin.php' ? 'active' : '' ?>" href="/HMS/dashboard/admin.php">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'users.php' ? 'active' : '' ?>" href="/HMS/users/">User Management</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'rooms.php' ? 'active' : '' ?>" href="/HMS/rooms/">Room Management</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'admin_provost_approvals.php' ? 'active' : '' ?>" href="/HMS/actions/admin_provost_approvals.php">Provost Approvals</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'notices.php' ? 'active' : '' ?>" href="/HMS/notices/">Notices</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'reports.php' ? 'active' : '' ?>" href="/HMS/reports/">Reports</a></li>
+                            <?php
+                            $currentPath = $_SERVER['PHP_SELF'];
+                            $currentPage = basename($currentPath);
+                            $currentDir = dirname($currentPath);
+                            ?>
+                            <li class="nav-item"><a class="nav-link text-white <?= $currentPage === 'admin.php' && $currentDir === '/HMS/dashboard' ? 'active' : '' ?>" href="/HMS/dashboard/admin.php">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/users') === 0 ? 'active' : '' ?>" href="/HMS/users/">User Management</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/rooms') === 0 ? 'active' : '' ?>" href="/HMS/rooms/">Room Management</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= $currentPage === 'admin_provost_approvals.php' && strpos($currentDir, '/HMS/actions') === 0 ? 'active' : '' ?>" href="/HMS/actions/admin_provost_approvals.php">Provost Approvals</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/notices') === 0 ? 'active' : '' ?>" href="/HMS/notices/">Notices</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/reports') === 0 ? 'active' : '' ?>" href="/HMS/reports/">Reports</a></li>
                         <?php elseif ($_SESSION['role'] === 'provost'): ?>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'provost.php' ? 'active' : '' ?>" href="/HMS/dashboard/provost.php">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'allocations.php' ? 'active' : '' ?>" href="/HMS/allocations/">Room Allocations</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'complaints.php' ? 'active' : '' ?>" href="/HMS/complaints/">Complaints</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'notices.php' ? 'active' : '' ?>" href="/HMS/notices/">Notices</a></li>
+                            <?php
+                            $currentPath = $_SERVER['PHP_SELF'];
+                            $currentPage = basename($currentPath);
+                            $currentDir = dirname($currentPath);
+                            ?>
+                            <li class="nav-item"><a class="nav-link text-white <?= $currentPage === 'provost.php' && $currentDir === '/HMS/dashboard' ? 'active' : '' ?>" href="/HMS/dashboard/provost.php">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/allocations') === 0 ? 'active' : '' ?>" href="/HMS/allocations/">Room Allocations</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/complaints') === 0 ? 'active' : '' ?>" href="/HMS/complaints/">Complaints</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/notices') === 0 ? 'active' : '' ?>" href="/HMS/notices/">Notices</a></li>
                         <?php elseif ($_SESSION['role'] === 'staff'): ?>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'staff.php' ? 'active' : '' ?>" href="/HMS/dashboard/staff.php">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'meals.php' ? 'active' : '' ?>" href="/HMS/meals/management/">Meal Management</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'bills.php' ? 'active' : '' ?>" href="/HMS/bills/management/">Bill Management</a></li>
-                            <li class="nav-item"><a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) === 'notices.php' ? 'active' : '' ?>" href="/HMS/notices/">Notices</a></li>
+                            <?php
+                            $currentPath = $_SERVER['PHP_SELF'];
+                            $currentPage = basename($currentPath);
+                            $currentDir = dirname($currentPath);
+                            ?>
+                            <li class="nav-item"><a class="nav-link text-white <?= $currentPage === 'staff.php' && $currentDir === '/HMS/dashboard' ? 'active' : '' ?>" href="/HMS/dashboard/staff.php">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/meals/management') === 0 ? 'active' : '' ?>" href="/HMS/meals/management/">Meal Management</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/bills/management') === 0 ? 'active' : '' ?>" href="/HMS/bills/management/">Bill Management</a></li>
+                            <li class="nav-item"><a class="nav-link text-white <?= strpos($currentDir, '/HMS/notices') === 0 ? 'active' : '' ?>" href="/HMS/notices/">Notices</a></li>
                         <?php endif; ?>
                     </ul>
 

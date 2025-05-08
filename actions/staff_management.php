@@ -7,7 +7,7 @@ require_once '../models/Staff.php';
 Session::init();
 
 // Check if user is logged in and has provost role
-if (!Session::isLoggedIn() || !Session::getUserRole() == 'provost') {
+if (!Session::isLoggedIn() || !Session::hasPermission('provost')) {
     header('Location: /HMS/');
     exit();
 }

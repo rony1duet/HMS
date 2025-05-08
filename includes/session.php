@@ -181,6 +181,26 @@ class Session
             $roleHierarchy[$userRole] === $requiredRole;
     }
 
+    public static function isAdmin(): bool
+    {
+        return self::hasPermission('admin');
+    }
+
+    public static function isProvost(): bool
+    {
+        return self::hasPermission('provost');
+    }
+
+    public static function isStaff(): bool
+    {
+        return self::hasPermission('staff');
+    }
+
+    public static function isStudent(): bool
+    {
+        return self::hasPermission('student');
+    }
+
     public static function getRoleHierarchy(): array
     {
         return [
