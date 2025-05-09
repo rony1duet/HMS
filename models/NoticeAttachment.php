@@ -23,9 +23,9 @@ class NoticeAttachment extends Model
         try {
             $sql = "INSERT INTO notice_attachments (notice_id, file_name, file_path, file_type, file_size) 
                     VALUES (:notice_id, :file_name, :file_path, :file_type, :file_size)";
-            
+
             $stmt = $this->conn->prepare($sql);
-            
+
             foreach ($attachments as $attachment) {
                 $stmt->execute([
                     ':notice_id' => $noticeId,
@@ -62,7 +62,7 @@ class NoticeAttachment extends Model
         try {
             // Get file paths before deletion
             $attachments = $this->getAttachments($noticeId);
-            
+
             // Delete from database
             $sql = "DELETE FROM notice_attachments WHERE notice_id = :notice_id";
             $stmt = $this->conn->prepare($sql);
@@ -96,5 +96,17 @@ class NoticeAttachment extends Model
     public static function generateUniqueFilename(string $originalName): string
     {
         return uniqid() . '_' . $originalName;
+    }
+    public function getAttachmentsByNoticeId($noticeId)
+    {
+        try {
+            $sql = "SELECT * FROM notice_attachments WHERE notice_id = :notice_id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute([':notice_id' => $noticeId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error fetching attachments: " . $e->getMessage());
+            return [];
+        }
     }
 }

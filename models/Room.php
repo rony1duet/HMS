@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/Model.php';
 
-class Room extends Model {
+class Room extends Model
+{
     protected $table = 'rooms';
 
-    public function create($data) {
+    public function create($data)
+    {
         try {
             return parent::create([
                 'room_number' => $data['room_number'],
@@ -18,15 +20,16 @@ class Room extends Model {
         }
     }
 
-    public function getAvailableRooms($categoryId = null) {
+    public function getAvailableRooms($categoryId = null)
+    {
         try {
             $query = "SELECT r.*, rc.name as category_name, rc.price 
                     FROM {$this->table} r 
                     JOIN room_categories rc ON r.category_id = rc.id 
                     WHERE r.status = :status";
-            
+
             $params = [':status' => 'available'];
-            
+
             if ($categoryId) {
                 $query .= " AND r.category_id = :category_id";
                 $params[':category_id'] = $categoryId;
@@ -40,7 +43,8 @@ class Room extends Model {
         }
     }
 
-    public function updateStatus($roomId, $status) {
+    public function updateStatus($roomId, $status)
+    {
         try {
             return parent::update($roomId, ['status' => $status]);
         } catch (Exception $e) {
@@ -49,7 +53,8 @@ class Room extends Model {
         }
     }
 
-    public function getRoomDetails($roomId) {
+    public function getRoomDetails($roomId)
+    {
         try {
             $query = "SELECT r.*, rc.name as category_name, rc.price, 
                     COUNT(b.id) as total_beds,
@@ -68,14 +73,15 @@ class Room extends Model {
         }
     }
 
-    public function getAllRooms($limit = 10, $offset = 0, $filters = []) {
+    public function getAllRooms($limit = 10, $offset = 0, $filters = [])
+    {
         try {
             $query = "SELECT r.*, rc.name as category_name, rc.price 
                     FROM {$this->table} r 
                     JOIN room_categories rc ON r.category_id = rc.id";
-            
+
             $params = [];
-            
+
             if (!empty($filters)) {
                 $conditions = [];
                 foreach ($filters as $key => $value) {
@@ -84,7 +90,7 @@ class Room extends Model {
                 }
                 $query .= " WHERE " . implode(' AND ', $conditions);
             }
-            
+
             $query .= " LIMIT :limit OFFSET :offset";
             $params[':limit'] = $limit;
             $params[':offset'] = $offset;

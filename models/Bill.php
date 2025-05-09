@@ -1,13 +1,16 @@
 <?php
-class Bill {
+class Bill
+{
     private $conn;
     private $table = 'bills';
 
-    public function __construct($db) {
+    public function __construct($db)
+    {
         $this->conn = $db;
     }
 
-    public function create($data) {
+    public function create($data)
+    {
         $query = "INSERT INTO " . $this->table . "
                 (student_id, bill_type, amount, month, due_date, status)
                 VALUES
@@ -22,19 +25,20 @@ class Bill {
         $stmt->bindParam(':due_date', $data['due_date']);
         $stmt->bindParam(':status', $data['status']);
 
-        if($stmt->execute()) {
+        if ($stmt->execute()) {
             return $this->conn->lastInsertId();
         }
         return false;
     }
 
-    public function getStudentBills($studentId, $status = null) {
+    public function getStudentBills($studentId, $status = null)
+    {
         $query = "SELECT b.*, p.amount as paid_amount 
                 FROM " . $this->table . " b 
                 LEFT JOIN payments p ON b.id = p.bill_id 
                 WHERE b.student_id = :student_id";
-        
-        if($status) {
+
+        if ($status) {
             $query .= " AND b.status = :status";
         }
 
@@ -42,8 +46,8 @@ class Bill {
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':student_id', $studentId);
-        
-        if($status) {
+
+        if ($status) {
             $stmt->bindParam(':status', $status);
         }
 
@@ -51,7 +55,8 @@ class Bill {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function updateStatus($billId, $status) {
+    public function updateStatus($billId, $status)
+    {
         $query = "UPDATE " . $this->table . " SET status = :status WHERE id = :id";
         $stmt = $this->conn->prepare($query);
 
@@ -61,7 +66,8 @@ class Bill {
         return $stmt->execute();
     }
 
-    public function getBillDetails($billId) {
+    public function getBillDetails($billId)
+    {
         $query = "SELECT b.*, p.amount as paid_amount, p.payment_date, p.payment_method 
                 FROM " . $this->table . " b 
                 LEFT JOIN payments p ON b.id = p.bill_id 
@@ -74,7 +80,8 @@ class Bill {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function getOverdueBills() {
+    public function getOverdueBills()
+    {
         $query = "SELECT b.*, s.first_name, s.last_name, s.student_id as student_number 
                 FROM " . $this->table . " b 
                 JOIN student_profiles s ON b.student_id = s.id 
