@@ -52,30 +52,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mkdir($uploadDir, 0777, true);
             }
 
-            $attachments = [];
-            if (!empty($_FILES['attachments']['name'][0])) {
-                foreach ($_FILES['attachments']['tmp_name'] as $key => $tmp_name) {
-                    $fileName = $_FILES['attachments']['name'][$key];
-                    $fileSize = $_FILES['attachments']['size'][$key];
-                    $fileType = pathinfo($fileName, PATHINFO_EXTENSION);
+            $attachment = [];
+            if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $fileName = $_FILES['attachment']['name'];
+                $fileTmpName = $_FILES['attachment']['tmp_name'];
+                $fileType = $_FILES['attachment']['type'];
+                $fileSize = $_FILES['attachment']['size'];
 
-                    if (!NoticeAttachment::isValidFileType($fileType)) {
-                        $_SESSION['error'] = 'Invalid file type. Only PDF and images are allowed.';
-                        header('Location: ' . $_SERVER['PHP_SELF']);
-                        exit;
-                    }
+                // Validate file type
+                $allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+                if (!in_array($fileType, $allowedTypes)) {
+                    $_SESSION['error'] = 'Invalid file type. Allowed types are PDF, JPEG, PNG, and GIF.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
+                }
 
-                    $uniqueName = NoticeAttachment::generateUniqueFilename($fileName);
-                    $filePath = $uploadDir . $uniqueName;
+                // Validate file size (max 5MB)
+                if ($fileSize > 5 * 1024 * 1024) {
+                    $_SESSION['error'] = 'File size exceeds maximum limit of 5MB.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
+                }
 
-                    if (move_uploaded_file($tmp_name, $filePath)) {
-                        $attachments[] = [
-                            'file_name' => $fileName,
-                            'file_path' => $filePath,
-                            'file_type' => $fileType === 'pdf' ? 'pdf' : 'image',
-                            'file_size' => $fileSize
-                        ];
-                    }
+                // Generate unique filename
+                $uniqueName = uniqid() . '_' . $fileName;
+                $uploadPath = $uploadDir . $uniqueName;
+
+                if (move_uploaded_file($fileTmpName, $uploadPath)) {
+                    $attachment = [
+                        'file_name' => $fileName,
+                        'file_path' => $uploadPath,
+                        'file_type' => $fileType,
+                        'file_size' => $fileSize
+                    ];
+                } else {
+                    $_SESSION['error'] = 'Failed to upload file.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
                 }
             }
 
@@ -89,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'end_date' => !empty($_POST['end_date']) ? $_POST['end_date'] : null
             ];
 
-            if ($notice->createNotice($noticeData, $attachments)) {
+            if ($notice->createNotice($noticeData, $attachment)) {
                 $_SESSION['success'] = 'Notice created successfully.';
             } else {
                 $_SESSION['error'] = 'Failed to create notice.';
@@ -158,501 +171,6 @@ $notices = $notice->getNoticesByHallId($hallId, $page, $perPage);
 // Include header
 require_once '../includes/header.php';
 ?>
-
-<style>
-    /* Inherit Bootstrap theme colors from header */
-    :root {
-        --primary: var(--bs-primary, #4361ee);
-        --primary-light: var(--bs-primary-rgb, #e6e9ff);
-        --secondary: var(--bs-secondary, #3f37c9);
-        --danger: var(--bs-danger, #f72585);
-        --warning: var(--bs-warning, #f8961e);
-        --info: var(--bs-info, #4895ef);
-        --success: var(--bs-success, #4cc9f0);
-        --light: var(--bs-light, #f8f9fa);
-        --dark: var(--bs-dark, #212529);
-        --gray: var(--bs-gray, #6c757d);
-        --white: var(--bs-white, #ffffff);
-        --border-radius: var(--bs-border-radius, 8px);
-        --box-shadow: var(--bs-box-shadow, 0 4px 12px rgba(0, 0, 0, 0.08));
-        --transition: all 0.3s ease;
-        --font-family: var(--bs-font-sans-serif, 'Inter', system-ui, -apple-system, sans-serif);
-    }
-
-    .notices-container {
-        max-width: min(1200px, 100% - 2rem);
-        margin: 1rem auto;
-        padding: 0 1rem;
-        width: 100%;
-    }
-
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .page-title {
-        font-size: 1.75rem;
-        font-weight: 700;
-        margin: 0;
-        color: var(--dark);
-    }
-
-    .page-subtitle {
-        color: var(--gray);
-        margin: 0.25rem 0 0;
-        font-size: 1rem;
-    }
-
-    .hall-badge {
-        background-color: var(--primary-light);
-        color: var(--primary);
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .filter-container {
-        margin-bottom: 1.5rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .filter-tabs {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .filter-tab {
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        background: var(--light);
-        color: var(--gray);
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        cursor: pointer;
-        transition: var(--transition);
-        text-decoration: none;
-    }
-
-    .filter-tab:hover {
-        background: var(--primary-light);
-        color: var(--primary);
-    }
-
-    .filter-tab.active {
-        background: var(--primary);
-        color: var(--white);
-        border-color: var(--primary);
-    }
-
-    .search-box {
-        min-width: 300px;
-    }
-
-    .search-box .input-group-text {
-        border-radius: var(--border-radius) 0 0 var(--border-radius);
-    }
-
-    .search-box .form-control {
-        border-radius: 0 var(--border-radius) var(--border-radius) 0;
-    }
-
-    .notices-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .notice-card {
-        background: var(--white);
-        border-radius: var(--border-radius);
-        padding: 1.5rem;
-        box-shadow: var(--box-shadow);
-        border-left: 4px solid var(--info);
-        transition: var(--transition);
-    }
-
-    .notice-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    }
-
-    .notice-card.urgent {
-        border-left-color: var(--danger);
-    }
-
-    .notice-card.important {
-        border-left-color: var(--warning);
-    }
-
-    .notice-card.normal {
-        border-left-color: var(--info);
-    }
-
-    .notice-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1rem;
-    }
-
-    .notice-title-section {
-        flex: 1;
-        margin-right: 1rem;
-    }
-
-    .notice-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin: 0 0 0.5rem;
-        color: var(--dark);
-    }
-
-    .notice-badges {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .notice-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .notice-badge.urgent {
-        background-color: rgba(247, 37, 133, 0.1);
-        color: var(--danger);
-    }
-
-    .notice-badge.important {
-        background-color: rgba(248, 150, 30, 0.1);
-        color: var(--warning);
-    }
-
-    .notice-badge.normal {
-        background-color: rgba(72, 149, 239, 0.1);
-        color: var(--info);
-    }
-
-    .notice-badge.new {
-        background-color: rgba(76, 201, 240, 0.1);
-        color: var(--success);
-    }
-
-    .notice-content {
-        color: var(--dark);
-        margin: 1rem 0;
-        line-height: 1.6;
-    }
-
-    .notice-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    .notice-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.5rem;
-    }
-
-    .notice-meta-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--gray);
-        font-size: 0.875rem;
-    }
-
-    .notice-meta-item i {
-        color: var(--primary);
-    }
-
-    .notice-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .notice-attachments {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    .attachment-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: var(--light);
-        padding: 0.5rem 0.75rem;
-        border-radius: var(--border-radius);
-        font-size: 0.75rem;
-        color: var(--gray);
-        transition: var(--transition);
-    }
-
-    .attachment-badge i {
-        color: var(--primary);
-    }
-
-    .attachment-badge:hover {
-        background: var(--primary-light);
-        color: var(--primary);
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem 1rem;
-        background: var(--light);
-        border-radius: var(--border-radius);
-        margin: 2rem 0;
-    }
-
-    .empty-state-icon {
-        font-size: 3rem;
-        color: var(--gray);
-        margin-bottom: 1rem;
-    }
-
-    .empty-state h4 {
-        color: var(--dark);
-        margin-bottom: 0.5rem;
-    }
-
-    .empty-state p {
-        color: var(--gray);
-        margin: 0;
-    }
-
-    @media (max-width: 991.98px) {
-        .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-        }
-
-        .filter-container {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 0.75rem;
-        }
-
-        .filter-tabs {
-            overflow-x: auto;
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: 0.5rem;
-        }
-
-        .search-box {
-            min-width: 100%;
-        }
-
-        .notice-card {
-            padding: 1rem;
-        }
-
-        .notice-header {
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .notice-actions {
-            width: 100%;
-            justify-content: flex-end;
-        }
-
-        .notice-footer {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .notice-meta {
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .notice-attachments {
-            overflow-x: auto;
-            white-space: nowrap;
-            padding-bottom: 0.5rem;
-        }
-
-        .view-btn {
-            width: 100%;
-            justify-content: center;
-        }
-    }
-
-    @media (max-width: 575.98px) {
-        .notices-container {
-            margin: 0.5rem auto;
-            padding: 0 0.5rem;
-        }
-
-        .page-title {
-            font-size: 1.5rem;
-        }
-
-        .notice-title {
-            font-size: 1.1rem;
-        }
-
-        .notice-content {
-            font-size: 0.9rem;
-        }
-
-        .notice-meta-item {
-            font-size: 0.8rem;
-        }
-    }
-
-    /* Notice View Modal Styles */
-    .notice-view {
-        padding: 1rem;
-    }
-
-    .notice-content {
-        font-size: 1rem;
-        line-height: 1.6;
-        color: var(--dark);
-    }
-
-    .attachment-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-decoration: none;
-        color: var(--dark);
-        padding: 1rem;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: var(--border-radius);
-        transition: var(--transition);
-        gap: 0.5rem;
-        min-width: 120px;
-        text-align: center;
-    }
-
-    .attachment-item:hover {
-        background-color: var(--primary-light);
-        border-color: var(--primary);
-        color: var(--primary);
-        transform: translateY(-2px);
-    }
-
-    .attachment-item.pdf {
-        color: var(--danger);
-    }
-
-    .attachment-item.pdf:hover {
-        background-color: rgba(247, 37, 133, 0.1);
-        border-color: var(--danger);
-    }
-
-    .attachment-item span {
-        font-size: 0.75rem;
-        max-width: 100px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .attachment-preview {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        cursor: pointer;
-        padding: 0.5rem;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: var(--border-radius);
-        transition: var(--transition);
-    }
-
-    .attachment-preview:hover {
-        background-color: var(--primary-light);
-        border-color: var(--primary);
-        transform: translateY(-2px);
-    }
-
-    .attachment-preview img {
-        border-radius: var(--border-radius);
-        transition: var(--transition);
-    }
-
-    .attachment-preview:hover img {
-        transform: scale(1.05);
-    }
-
-    /* Quill Editor Styles */
-    .ql-editor {
-        min-height: 200px;
-        font-size: 1rem;
-        line-height: 1.6;
-    }
-
-    .ql-toolbar {
-        border-top-left-radius: var(--border-radius);
-        border-top-right-radius: var(--border-radius);
-        border-color: rgba(0, 0, 0, 0.1);
-    }
-
-    .ql-container {
-        border-bottom-left-radius: var(--border-radius);
-        border-bottom-right-radius: var(--border-radius);
-        border-color: rgba(0, 0, 0, 0.1);
-    }
-
-    /* SweetAlert2 Custom Styles */
-    .swal2-popup {
-        border-radius: var(--border-radius);
-        padding: 2rem;
-    }
-
-    .swal2-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--dark);
-    }
-
-    .swal2-html-container {
-        font-size: 1rem;
-        color: var(--gray);
-    }
-
-    .swal2-confirm {
-        background-color: var(--primary) !important;
-        border-radius: var(--border-radius) !important;
-    }
-
-    .swal2-cancel {
-        background-color: var(--gray) !important;
-        border-radius: var(--border-radius) !important;
-    }
-</style>
 
 <div class="notices-container">
     <div class="page-header">
@@ -731,7 +249,7 @@ require_once '../includes/header.php';
                         <?php
                         $isNew = (strtotime($noticeItem['created_at']) >= strtotime('-24 hours'));
                         $importanceClass = strtolower($noticeItem['importance']);
-                        $hasAttachments = !empty($noticeItem['attachments']);
+                        $hasAttachment = !empty($noticeItem['attachment']);
                         ?>
                         <div class="notice-card <?php echo $importanceClass; ?>" data-id="<?php echo $noticeItem['id']; ?>">
                             <div class="notice-header">
@@ -773,10 +291,10 @@ require_once '../includes/header.php';
                                         <i class="fas fa-clock"></i>
                                         <?php echo date('g:i A', strtotime($noticeItem['created_at'])); ?>
                                     </span>
-                                    <?php if ($hasAttachments): ?>
+                                    <?php if ($hasAttachment): ?>
                                         <span class="notice-meta-item">
                                             <i class="fas fa-paperclip"></i>
-                                            <?php echo count($noticeItem['attachments']) . ' attachment' . (count($noticeItem['attachments']) > 1 ? 's' : ''); ?>
+                                            <?php echo count($noticeItem['attachment']) . ' attachment' . (count($noticeItem['attachment']) > 1 ? 's' : ''); ?>
                                         </span>
                                     <?php endif; ?>
                                 </div>
@@ -787,9 +305,9 @@ require_once '../includes/header.php';
                                 </button>
                             </div>
 
-                            <?php if ($hasAttachments): ?>
-                                <div class="notice-attachments">
-                                    <?php foreach ($noticeItem['attachments'] as $attachment): ?>
+                            <?php if ($hasAttachment): ?>
+                                <div class="notice-attachment">
+                                    <?php foreach ($noticeItem['attachment'] as $attachment): ?>
                                         <span class="attachment-badge">
                                             <i class="fas <?php echo $attachment['file_type'] === 'pdf' ? 'fa-file-pdf' : 'fa-image'; ?>"></i>
                                             <?php echo htmlspecialchars($attachment['file_name']); ?>
@@ -801,83 +319,6 @@ require_once '../includes/header.php';
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- View Notice Modal -->
-    <div class="modal fade" id="viewNoticeModal" tabindex="-1" aria-labelledby="viewNoticeModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="viewNoticeModalLabel">Notice Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="viewNoticeContent">
-                    <!-- Content will be loaded dynamically -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Notice Modal -->
-    <div class="modal fade" id="editNoticeModal" tabindex="-1" aria-labelledby="editNoticeModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editNoticeModalLabel">Edit Notice</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="editNoticeForm" method="POST" class="needs-validation" novalidate>
-                    <div class="modal-body">
-                        <input type="hidden" name="action" value="update">
-                        <input type="hidden" name="notice_id" id="editNoticeId">
-
-                        <div class="mb-3">
-                            <label for="editTitle" class="form-label">Title</label>
-                            <input type="text" class="form-control" id="editTitle" name="title" required>
-                            <div class="invalid-feedback">Please provide a title.</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="editContent" class="form-label">Content</label>
-                            <div id="editEditorContainer"></div>
-                            <textarea id="editContent" name="content" style="display: none;"></textarea>
-                            <div class="invalid-feedback">Please provide content.</div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="editImportance" class="form-label">Importance</label>
-                                <select class="form-select" id="editImportance" name="importance" required>
-                                    <option value="normal">Normal</option>
-                                    <option value="important">Important</option>
-                                    <option value="urgent">Urgent</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4 mb-3">
-                                <label for="editStartDate" class="form-label">Start Date</label>
-                                <input type="date" class="form-control" id="editStartDate" name="start_date" required>
-                                <div class="invalid-feedback">Please select a start date.</div>
-                            </div>
-
-                            <div class="col-md-4 mb-3">
-                                <label for="editEndDate" class="form-label">End Date (Optional)</label>
-                                <input type="date" class="form-control" id="editEndDate" name="end_date">
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Current Attachments</label>
-                            <div id="existingAttachments" class="d-flex flex-wrap gap-3"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                    </div>
-                </form>
-            </div>
         </div>
     </div>
 
@@ -897,8 +338,6 @@ require_once '../includes/header.php';
             </li>
         </ul>
     </nav>
-</div>
-</div>
 </div>
 
 <!-- Create Notice Modal -->
@@ -950,11 +389,10 @@ require_once '../includes/header.php';
                     </div>
 
                     <div class="mb-4">
-                        <label for="attachments" class="form-label">Attachments</label>
-                        <input type="file" class="form-control" id="attachments" name="attachments[]" multiple
-                            accept=".pdf,.jpg,.jpeg,.png,.gif" onchange="previewFiles(this)">
-                        <div class="form-text text-muted">Supported formats: PDF, JPG, PNG, GIF (Max 5MB each)</div>
-
+                        <label for="attachment" class="form-label">Attachment</label>
+                        <input type="file" class="form-control" id="attachment" name="attachment"
+                            accept=".pdf,.jpg,.jpeg,.png,.gif">
+                        <div class="form-text text-muted">Supported formats: PDF, JPG, PNG, GIF (Max 5MB)</div>
                         <div id="filePreviewContainer" class="file-preview mt-3"></div>
                     </div>
                 </div>
@@ -1017,13 +455,13 @@ require_once '../includes/header.php';
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label">Existing Attachments</label>
-                        <div id="existingAttachments" class="d-flex flex-wrap gap-3"></div>
+                        <label class="form-label">Existing Attachment</label>
+                        <div id="existingAttachment" class="d-flex flex-wrap gap-3"></div>
                     </div>
 
                     <div class="mb-4">
-                        <label for="editAttachments" class="form-label">Add New Attachments</label>
-                        <input type="file" class="form-control" id="editAttachments" name="attachments[]" multiple
+                        <label for="editAttachment" class="form-label">Add New Attachment</label>
+                        <input type="file" class="form-control" id="editAttachment" name="attachment"
                             accept=".pdf,.jpg,.jpeg,.png,.gif" onchange="previewFiles(this)">
                         <div class="form-text">Supported formats: PDF, JPG, PNG, GIF (Max 5MB each)</div>
                         <div id="editFilePreviewContainer" class="file-preview mt-3"></div>
@@ -1058,432 +496,20 @@ require_once '../includes/header.php';
     </div>
 </div>
 
-<style>
-    :root {
-        --primary-color: #4361ee;
-        --secondary-color: #3f37c9;
-        --success-color: #4cc9f0;
-        --danger-color: #f72585;
-        --warning-color: #f8961e;
-        --info-color: #4895ef;
-        --light-color: #f8f9fa;
-        --dark-color: #212529;
-        --border-radius: 0.5rem;
-        --transition: all 0.3s ease;
-    }
-
-    .notice-card {
-        border: 1px solid #e9ecef;
-        border-left: 4px solid;
-        transition: var(--transition);
-        border-radius: var(--border-radius);
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        background: #fff;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .notice-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    .notice-urgent {
-        border-left-color: var(--danger-color);
-        background: linear-gradient(to right, rgba(247, 37, 133, 0.05), transparent);
-    }
-
-    .notice-important {
-        border-left-color: var(--warning-color);
-        background: linear-gradient(to right, rgba(248, 150, 30, 0.05), transparent);
-    }
-
-    .notice-normal {
-        border-left-color: var(--info-color);
-        background: linear-gradient(to right, rgba(72, 149, 239, 0.05), transparent);
-    }
-
-    .badge-urgent {
-        background-color: var(--danger-color);
-        color: white;
-        font-weight: 500;
-    }
-
-    .badge-important {
-        background-color: var(--warning-color);
-        color: white;
-        font-weight: 500;
-    }
-
-    .badge-normal {
-        background-color: var(--info-color);
-        color: white;
-        font-weight: 500;
-    }
-
-    .attachment-badge {
-        background-color: rgba(233, 236, 239, 0.5);
-        color: #495057;
-        border-radius: 20px;
-        padding: 5px 12px;
-        font-size: 0.8rem;
-        margin-right: 5px;
-        margin-bottom: 5px;
-        display: inline-flex;
-        align-items: center;
-        transition: var(--transition);
-        border: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    .attachment-badge i {
-        margin-right: 5px;
-    }
-
-    .empty-state {
-        background-color: #f8f9fa;
-        border-radius: var(--border-radius);
-        padding: 60px 30px;
-        text-align: center;
-        border: 2px dashed #dee2e6;
-    }
-
-    .empty-state-icon {
-        font-size: 4rem;
-        color: #adb5bd;
-        margin-bottom: 20px;
-        animation: bounce 2s infinite;
-    }
-
-    @keyframes bounce {
-
-        0%,
-        20%,
-        50%,
-        80%,
-        100% {
-            transform: translateY(0);
-        }
-
-        40% {
-            transform: translateY(-20px);
-        }
-
-        60% {
-            transform: translateY(-10px);
-        }
-    }
-
-    .floating-btn {
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 20px rgba(67, 97, 238, 0.3);
-        z-index: 1000;
-        transition: var(--transition);
-        background: var(--primary-color);
-        color: white;
-        border: none;
-    }
-
-    .floating-btn:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 25px rgba(67, 97, 238, 0.4);
-    }
-
-    .date-badge {
-        background-color: rgba(233, 236, 239, 0.5);
-        color: #495057;
-        border-radius: 20px;
-        padding: 4px 12px;
-        font-size: 0.75rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    .file-preview {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin-top: 15px;
-        padding: 15px;
-        background: rgba(248, 249, 250, 0.5);
-        border-radius: var(--border-radius);
-        border: 1px dashed #dee2e6;
-    }
-
-    .file-preview-item {
-        background: white;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        border-radius: var(--border-radius);
-        padding: 10px 15px;
-        display: flex;
-        align-items: center;
-        font-size: 0.8rem;
-        transition: var(--transition);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-    }
-
-    .file-preview-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .file-preview-item i {
-        margin-right: 5px;
-        color: #6c757d;
-    }
-
-    .card-body {
-        flex: 1;
-        padding: 1.5rem;
-    }
-
-    .card-footer {
-        background-color: rgba(0, 0, 0, 0.02);
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-        padding: 1rem 1.5rem;
-    }
-
-    #editor-container {
-        height: 250px;
-        margin-bottom: 15px;
-        border-radius: var(--border-radius);
-        overflow: hidden;
-    }
-
-    .ql-toolbar {
-        border-radius: var(--border-radius) var(--border-radius) 0 0;
-        border-color: #dee2e6 !important;
-        background: #f8f9fa;
-    }
-
-    .ql-container {
-        border-radius: 0 0 var(--border-radius) var(--border-radius);
-        font-family: inherit;
-        border-color: #dee2e6 !important;
-    }
-
-    .notice-content img {
-        max-width: 100%;
-        height: auto;
-        border-radius: var(--border-radius);
-        margin: 10px 0;
-    }
-
-    .attachment-thumbnail {
-        width: 120px;
-        height: 120px;
-        object-fit: cover;
-        border-radius: var(--border-radius);
-        margin-right: 10px;
-        margin-bottom: 10px;
-        cursor: pointer;
-        transition: var(--transition);
-        border: 2px solid white;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-
-    .attachment-thumbnail:hover {
-        transform: scale(1.05);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .attachment-preview {
-        max-width: 100%;
-        max-height: 400px;
-        margin-bottom: 15px;
-        border-radius: var(--border-radius);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .tab-content {
-        padding: 25px 0;
-    }
-
-    .notice-filters {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-    }
-
-    .filter-btn {
-        padding: 8px 16px;
-        border-radius: 20px;
-        border: 1px solid #dee2e6;
-        background: white;
-        color: #495057;
-        font-size: 0.9rem;
-        transition: var(--transition);
-        cursor: pointer;
-    }
-
-    .filter-btn:hover,
-    .filter-btn.active {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-    }
-
-    .notice-search {
-        position: relative;
-        margin-bottom: 20px;
-    }
-
-    .notice-search input {
-        width: 100%;
-        padding: 12px 20px;
-        padding-left: 40px;
-        border-radius: var(--border-radius);
-        border: 1px solid #dee2e6;
-        font-size: 0.9rem;
-        transition: var(--transition);
-    }
-
-    .notice-search input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-    }
-
-    .notice-search i {
-        position: absolute;
-        left: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #adb5bd;
-    }
-
-    .dropdown-menu {
-        border-radius: var(--border-radius);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        padding: 0.5rem;
-    }
-
-    .dropdown-item {
-        border-radius: var(--border-radius);
-        padding: 0.5rem 1rem;
-        transition: var(--transition);
-    }
-
-    .dropdown-item:hover {
-        background-color: rgba(67, 97, 238, 0.1);
-        color: var(--primary-color);
-    }
-
-    .dropdown-item i {
-        width: 20px;
-    }
-
-    .modal-content {
-        border-radius: var(--border-radius);
-        border: none;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .modal-header {
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        padding: 1.5rem;
-    }
-
-    .modal-body {
-        padding: 1.5rem;
-    }
-
-    .modal-footer {
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-        padding: 1.5rem;
-    }
-
-    .form-control,
-    .form-select {
-        border-radius: var(--border-radius);
-        padding: 0.75rem 1rem;
-        border-color: #dee2e6;
-        transition: var(--transition);
-    }
-
-    .form-control:focus,
-    .form-select:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-    }
-
-    .btn {
-        border-radius: var(--border-radius);
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        transition: var(--transition);
-    }
-
-    .btn-primary {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-    }
-
-    .btn-primary:hover {
-        background-color: var(--secondary-color);
-        border-color: var(--secondary-color);
-        transform: translateY(-1px);
-    }
-
-    .pagination {
-        gap: 5px;
-    }
-
-    .page-link {
-        border-radius: var(--border-radius);
-        padding: 0.5rem 1rem;
-        transition: var(--transition);
-    }
-
-    .page-item.active .page-link {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-    }
-
-    .alert {
-        border-radius: var(--border-radius);
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        padding: 1rem 1.5rem;
-    }
-
-    .breadcrumb {
-        margin-bottom: 0;
-    }
-
-    .breadcrumb-item a {
-        color: var(--primary-color);
-        text-decoration: none;
-        transition: var(--transition);
-    }
-
-    .breadcrumb-item a:hover {
-        color: var(--secondary-color);
-    }
-</style>
+<?php require_once '../assets/css/noticeStyle.php'; ?>
 
 <script>
-    // Wait for DOM to be fully loaded
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize Quill editors
+        // Initialize Quill editor for create modal
         const quill = new Quill('#editor-container', {
             theme: 'snow',
             modules: {
                 toolbar: [
                     [{
-                        'header': [1, 2, 3, false]
+                        'font': []
+                    }],
+                    [{
+                        'header': [1, 2, 3, 4, 5, 6, false]
                     }],
                     ['bold', 'italic', 'underline', 'strike'],
                     [{
@@ -1496,20 +522,36 @@ require_once '../includes/header.php';
                     }, {
                         'list': 'bullet'
                     }],
-                    ['link', 'image'],
+                    [{
+                        'indent': '-1'
+                    }, {
+                        'indent': '+1'
+                    }],
+                    [{
+                        'align': []
+                    }],
+                    ['link'],
                     ['clean']
                 ]
             },
             placeholder: 'Write the notice content here...'
         });
 
+        // Sync Quill content with hidden textarea for create modal
+        quill.on('text-change', function() {
+            document.getElementById('content').value = quill.root.innerHTML;
+        });
+
         // Initialize Quill editor for edit modal
-        const editQuill = new Quill('#editContent', {
+        const editQuill = new Quill('#editEditorContainer', {
             theme: 'snow',
             modules: {
                 toolbar: [
                     [{
-                        'header': [1, 2, 3, false]
+                        'font': []
+                    }],
+                    [{
+                        'header': [1, 2, 3, 4, 5, 6, false]
                     }],
                     ['bold', 'italic', 'underline', 'strike'],
                     [{
@@ -1522,24 +564,24 @@ require_once '../includes/header.php';
                     }, {
                         'list': 'bullet'
                     }],
-                    ['link', 'image'],
+                    [{
+                        'indent': '-1'
+                    }, {
+                        'indent': '+1'
+                    }],
+                    [{
+                        'align': []
+                    }],
+                    ['link'],
                     ['clean']
                 ]
             }
         });
 
-        // Sync Quill content with hidden form fields
-        if (quill) {
-            quill.on('text-change', function() {
-                document.getElementById('content').value = quill.root.innerHTML;
-            });
-        }
-
-        if (editQuill) {
-            editQuill.on('text-change', function() {
-                document.getElementById('editContentInput').value = editQuill.root.innerHTML;
-            });
-        }
+        // Sync Quill content with hidden textarea for edit modal
+        editQuill.on('text-change', function() {
+            document.getElementById('editContent').value = editQuill.root.innerHTML;
+        });
 
         // Notice filtering functionality
         document.querySelectorAll('.filter-btn').forEach(button => {
@@ -1559,9 +601,9 @@ require_once '../includes/header.php';
                     if (filter === 'all' ||
                         (filter === importance) ||
                         (filter === 'new' && isNew)) {
-                        notice.closest('.col-md-6').style.display = '';
+                        notice.style.display = '';
                     } else {
-                        notice.closest('.col-md-6').style.display = 'none';
+                        notice.style.display = 'none';
                     }
                 });
             });
@@ -1575,13 +617,13 @@ require_once '../includes/header.php';
                 const notices = document.querySelectorAll('.notice-card');
 
                 notices.forEach(notice => {
-                    const title = notice.querySelector('.card-title').textContent.toLowerCase();
-                    const content = notice.querySelector('.card-text').textContent.toLowerCase();
+                    const title = notice.querySelector('.notice-title').textContent.toLowerCase();
+                    const content = notice.querySelector('.notice-content').textContent.toLowerCase();
 
                     if (title.includes(searchTerm) || content.includes(searchTerm)) {
-                        notice.closest('.col-md-6').style.display = '';
+                        notice.style.display = '';
                     } else {
-                        notice.closest('.col-md-6').style.display = 'none';
+                        notice.style.display = 'none';
                     }
                 });
             });
@@ -1634,14 +676,14 @@ require_once '../includes/header.php';
                 const importanceClass = data.importance === 'urgent' ? 'danger' :
                     (data.importance === 'important' ? 'warning' : 'info');
 
-                // Format attachments HTML if any
-                let attachmentsHtml = '';
-                if (data.attachments && data.attachments.length > 0) {
-                    attachmentsHtml = `
-                    <div class="notice-attachments">
-                        <h6 class="mb-3">Attachments</h6>
+                // Format attachment HTML if any
+                let attachmentHtml = '';
+                if (data.attachment && data.attachment.length > 0) {
+                    attachmentHtml = `
+                    <div class="notice-attachment">
+                        <h6 class="mb-3">Attachment</h6>
                         <div class="d-flex flex-wrap gap-3">
-                            ${data.attachments.map(att => `
+                            ${data.attachment.map(att => `
                                 <a href="${att.file_path}" 
                                    class="attachment-item ${att.file_type === 'pdf' ? 'pdf' : 'image'}" 
                                    target="_blank"
@@ -1679,7 +721,7 @@ require_once '../includes/header.php';
                     </span>
                 </div>
                 
-                ${attachmentsHtml}
+                ${attachmentHtml}
             `;
 
                 document.getElementById('noticeDetailContent').innerHTML = content;
@@ -1704,125 +746,56 @@ require_once '../includes/header.php';
      */
     function editNotice(noticeId) {
         fetch(`/HMS/api/notices.php?id=${noticeId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to fetch notice data');
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                // Handle response format variations (direct or with .success/.data)
-                const noticeData = data.success && data.data ? data.data : data;
+                // Populate form fields
+                document.getElementById('editNoticeId').value = data.id;
+                document.getElementById('editTitle').value = data.title;
 
-                // Populate the form fields
-                document.getElementById('editNoticeId').value = noticeData.id;
-                document.getElementById('editTitle').value = noticeData.title;
+                // Set Quill editor content
+                editQuill.root.innerHTML = data.content;
+                document.getElementById('editContent').value = data.content;
 
-                // Populate Quill editor
-                const editQuill = Quill.find(document.getElementById('editContent'));
-                editQuill.root.innerHTML = noticeData.content;
-                document.getElementById('editContentInput').value = noticeData.content;
-
-                // Other form fields
-                document.getElementById('editImportance').value = noticeData.importance;
-                document.getElementById('editStartDate').value = noticeData.start_date.split(' ')[0];
-                document.getElementById('editEndDate').value = noticeData.end_date ? noticeData.end_date.split(' ')[0] : '';
+                // Other fields
+                document.getElementById('editImportance').value = data.importance;
+                document.getElementById('editStartDate').value = data.start_date.split(' ')[0];
+                document.getElementById('editEndDate').value = data.end_date ? data.end_date.split(' ')[0] : '';
 
                 // Set min date for end date
-                document.getElementById('editEndDate').min = noticeData.start_date.split(' ')[0];
+                document.getElementById('editEndDate').min = data.start_date.split(' ')[0];
 
                 // Display existing attachments
-                displayExistingAttachments(noticeData.attachments);
+                const attachmentContainer = document.getElementById('existingAttachment');
+                attachmentContainer.innerHTML = '';
 
-                // Show the modal
+                if (data.attachment && data.attachment.length > 0) {
+                    data.attachment.forEach(att => {
+                        const attachmentItem = document.createElement('div');
+                        attachmentItem.className = 'attachment-item d-flex align-items-center mb-2';
+                        attachmentItem.innerHTML = `
+                        <i class="fas ${att.file_type === 'pdf' ? 'fa-file-pdf' : 'fa-image'} me-2"></i>
+                        <span>${att.file_name}</span>
+                        <button type="button" class="btn btn-sm btn-danger ms-2" 
+                                onclick="deleteAttachment(${att.id}, ${noticeId})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                        attachmentContainer.appendChild(attachmentItem);
+                    });
+                } else {
+                    attachmentContainer.innerHTML = '<p class="text-muted">No attachment</p>';
+                }
+
+                // Show modal
                 const editModal = new bootstrap.Modal(document.getElementById('editNoticeModal'));
                 editModal.show();
             })
             .catch(error => {
                 console.error('Error:', error);
                 Swal.fire({
+                    icon: 'error',
                     title: 'Error',
-                    text: 'Failed to load notice data',
-                    icon: 'error'
-                });
-            });
-    }
-
-    /**
-     * Display existing attachments in the edit modal
-     * @param {Array} attachments - Array of attachment objects
-     */
-    function displayExistingAttachments(attachments) {
-        const attachmentsContainer = document.getElementById('existingAttachments');
-        attachmentsContainer.innerHTML = '';
-
-        if (attachments && attachments.length > 0) {
-            const attachmentsList = document.createElement('div');
-            attachmentsList.className = 'list-group mb-3';
-
-            attachments.forEach(attachment => {
-                const item = document.createElement('div');
-                item.className = 'list-group-item d-flex justify-content-between align-items-center';
-                item.innerHTML = `
-                <span>
-                    <i class="fas fa-${attachment.file_type === 'pdf' ? 'file-pdf' : 'file-image'} me-2"></i>
-                    ${attachment.file_name}
-                </span>
-                <button type="button" class="btn btn-sm btn-danger" onclick="deleteAttachment(${attachment.id})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            `;
-                attachmentsList.appendChild(item);
-            });
-
-            attachmentsContainer.appendChild(attachmentsList);
-        } else {
-            attachmentsContainer.innerHTML = '<p class="text-muted">No attachments</p>';
-        }
-    }
-
-    /**
-     * Update notice
-     */
-    function updateNotice() {
-        const form = document.getElementById('editNoticeForm');
-        if (!form.checkValidity()) {
-            form.classList.add('was-validated');
-            return;
-        }
-
-        // Get form data
-        const formData = new FormData(form);
-
-        // Make sure to get content from Quill editor
-        const editQuill = Quill.find(document.getElementById('editContent'));
-        formData.set('content', editQuill.root.innerHTML);
-
-        // Send update request
-        fetch('/HMS/api/notices/update', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        title: 'Success',
-                        text: 'Notice updated successfully',
-                        icon: 'success'
-                    }).then(() => {
-                        window.location.reload();
-                    });
-                } else {
-                    throw new Error(data.message || 'Failed to update notice');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    title: 'Error',
-                    text: error.message || 'Failed to update notice',
-                    icon: 'error'
+                    text: 'Failed to load notice data'
                 });
             });
     }
@@ -1830,8 +803,9 @@ require_once '../includes/header.php';
     /**
      * Delete attachment
      * @param {number} attachmentId - The ID of the attachment to delete
+     * @param {number} noticeId - The ID of the notice the attachment belongs to
      */
-    function deleteAttachment(attachmentId) {
+    function deleteAttachment(attachmentId, noticeId) {
         Swal.fire({
             title: 'Delete Attachment',
             text: 'Are you sure you want to delete this attachment?',
@@ -1842,14 +816,20 @@ require_once '../includes/header.php';
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`/HMS/api/notices/attachments/${attachmentId}`, {
+                fetch(`/HMS/api/notices/attachment/${attachmentId}`, {
                         method: 'DELETE'
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            // Refresh the attachments list
-                            editNotice(document.getElementById('editNoticeId').value);
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                text: 'Attachment deleted successfully'
+                            }).then(() => {
+                                // Refresh the edit modal
+                                editNotice(noticeId);
+                            });
                         } else {
                             throw new Error(data.message || 'Failed to delete attachment');
                         }
@@ -1857,9 +837,9 @@ require_once '../includes/header.php';
                     .catch(error => {
                         console.error('Error:', error);
                         Swal.fire({
+                            icon: 'error',
                             title: 'Error',
-                            text: error.message || 'Failed to delete attachment',
-                            icon: 'error'
+                            text: error.message || 'Failed to delete attachment'
                         });
                     });
             }
@@ -1909,28 +889,29 @@ require_once '../includes/header.php';
      * @param {HTMLInputElement} input - The file input element
      */
     function previewFiles(input) {
-        const previewContainer = document.getElementById('filePreviewContainer');
+        const previewContainer = input.id === 'editAttachment' ?
+            document.getElementById('editFilePreviewContainer') :
+            document.getElementById('filePreviewContainer');
+
         previewContainer.innerHTML = '';
 
         if (input.files.length > 0) {
-            for (let i = 0; i < input.files.length; i++) {
-                const file = input.files[i];
-                const fileType = file.name.split('.').pop().toLowerCase();
+            const file = input.files[0];
+            const fileType = file.name.split('.').pop().toLowerCase();
 
-                const fileItem = document.createElement('div');
-                fileItem.className = 'file-preview-item';
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-preview-item';
 
-                let iconClass = 'fa-file';
-                if (fileType === 'pdf') iconClass = 'fa-file-pdf';
-                else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileType)) iconClass = 'fa-file-image';
+            let iconClass = 'fa-file';
+            if (fileType === 'pdf') iconClass = 'fa-file-pdf';
+            else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileType)) iconClass = 'fa-file-image';
 
-                fileItem.innerHTML = `
-                <i class="fas ${iconClass}"></i>
-                ${file.name} (${(file.size / 1024).toFixed(1)}KB)
-            `;
+            fileItem.innerHTML = `
+            <i class="fas ${iconClass}"></i>
+            ${file.name} (${(file.size / 1024).toFixed(1)}KB)
+        `;
 
-                previewContainer.appendChild(fileItem);
-            }
+            previewContainer.appendChild(fileItem);
         }
     }
 
@@ -1950,29 +931,6 @@ require_once '../includes/header.php';
                 image: 'img-fluid'
             }
         });
-    }
-
-    /**
-     * Open image preview in a new window
-     * @param {string} imageUrl - The URL of the image
-     */
-    function openImagePreview(imageUrl) {
-        const previewWindow = window.open('', '_blank');
-        previewWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Image Preview</title>
-            <style>
-                body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f8f9fa; }
-                img { max-width: 100%; max-height: 90vh; object-fit: contain; }
-            </style>
-        </head>
-        <body>
-            <img src="${imageUrl}">
-        </body>
-        </html>
-    `);
     }
 </script>
 

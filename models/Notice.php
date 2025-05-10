@@ -13,9 +13,9 @@ class Notice extends Model
     }
 
     /**
-     * Create a new notice with attachments
+     * Create a new notice with attachment
      */
-    public function createNotice(array $data, array $attachments = []): ?int
+    public function createNotice(array $data, array $attachment = []): int
     {
         try {
             $this->conn->beginTransaction();
@@ -26,6 +26,7 @@ class Notice extends Model
 
             $sql = "INSERT INTO notices (title, content, posted_by_slug, hall_id, importance, start_date, end_date) 
                     VALUES (:title, :content, :posted_by_slug, :hall_id, :importance, :start_date, :end_date)";
+
 
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
@@ -40,9 +41,9 @@ class Notice extends Model
 
             $noticeId = $this->conn->lastInsertId();
 
-            if (!empty($attachments)) {
-                if (!$this->attachmentModel->createAttachments($noticeId, $attachments)) {
-                    throw new Exception('Failed to save attachments');
+            if (!empty($attachment)) {
+                if (!$this->attachmentModel->createAttachment($noticeId, $attachment)) {
+                    throw new Exception('Failed to save attachment');
                 }
             }
 
@@ -50,8 +51,8 @@ class Notice extends Model
             return $noticeId;
         } catch (Exception $e) {
             $this->conn->rollBack();
-            error_log($e->getMessage());
-            return null;
+            error_log('Error in createNotice: ' . $e->getMessage() . "\nTrace: " . $e->getTraceAsString());
+            throw $e;
         }
     }
 
@@ -72,10 +73,10 @@ class Notice extends Model
             $sql = "SELECT n.*,
                        GROUP_CONCAT(
                            CONCAT(na.id, ':', na.file_name, ':', na.file_path, ':', na.file_type)
-                       ) as attachments,
+                       ) as attachment,
                        u.display_name as posted_by_name
                 FROM notices n
-                LEFT JOIN notice_attachments na ON n.id = na.notice_id
+                LEFT JOIN notice_attachment na ON n.id = na.notice_id
                 LEFT JOIN halls h ON n.hall_id = h.id
                 LEFT JOIN users u ON n.posted_by_slug = u.slug
                 WHERE h.name = :hall_name
@@ -115,7 +116,7 @@ class Notice extends Model
     }
 
     /**
-     * Get a single notice with its attachments
+     * Get a single notice with its attachment
      */
     public function getNotice(int $noticeId): ?array
     {
@@ -123,10 +124,10 @@ class Notice extends Model
             $sql = "SELECT n.*, 
                            GROUP_CONCAT(
                                CONCAT(na.id, ':', na.file_name, ':', na.file_path, ':', na.file_type)
-                           ) as attachments,
+                           ) as attachment,
                            u.display_name as posted_by_name
                     FROM notices n 
-                    LEFT JOIN notice_attachments na ON n.id = na.notice_id 
+                    LEFT JOIN notice_attachment na ON n.id = na.notice_id 
                     LEFT JOIN users u ON n.posted_by_slug = u.slug
                     WHERE n.id = :notice_id
                     GROUP BY n.id";
@@ -144,15 +145,15 @@ class Notice extends Model
     }
 
     /**
-     * Delete a notice and its attachments
+     * Delete a notice and its attachment
      */
     public function deleteNotice(int $noticeId): bool
     {
         try {
             $this->conn->beginTransaction();
 
-            if (!$this->attachmentModel->deleteAttachments($noticeId)) {
-                throw new Exception('Failed to delete attachments');
+            if (!$this->attachmentModel->deleteAttachment($noticeId)) {
+                throw new Exception('Failed to delete attachment');
             }
 
             $sql = "DELETE FROM notices WHERE id = :notice_id";
@@ -217,10 +218,10 @@ class Notice extends Model
             $sql = "SELECT n.*,
                        GROUP_CONCAT(
                            CONCAT(na.id, ':', na.file_name, ':', na.file_path, ':', na.file_type)
-                       ) as attachments,
+                       ) as attachment,
                        u.display_name as posted_by_name
                 FROM notices n
-                LEFT JOIN notice_attachments na ON n.id = na.notice_id
+                LEFT JOIN notice_attachment na ON n.id = na.notice_id
                 LEFT JOIN users u ON n.posted_by_slug = u.slug
                 WHERE n.id = :notice_id
                 GROUP BY n.id";
@@ -236,7 +237,7 @@ class Notice extends Model
             return null;
         }
     }
-    public function updateNotice(int $noticeId, array $data, array $attachments = []): bool
+    public function updateNotice(int $noticeId, array $data, array $attachment = []): bool
     {
         try {
             $this->conn->beginTransaction();
@@ -259,9 +260,9 @@ class Notice extends Model
                 ':notice_id' => $noticeId
             ]);
 
-            if (!empty($attachments)) {
-                if (!$this->attachmentModel->createAttachments($noticeId, $attachments)) {
-                    throw new Exception('Failed to save attachments');
+            if (!empty($attachment)) {
+                if (!$this->attachmentModel->createAttachment($noticeId, $attachment)) {
+                    throw new Exception('Failed to save attachment');
                 }
             }
 
@@ -283,10 +284,10 @@ class Notice extends Model
             $sql = "SELECT n.*,
                        GROUP_CONCAT(
                            CONCAT(na.id, ':', na.file_name, ':', na.file_path, ':', na.file_type)
-                       ) as attachments,
+                       ) as attachment,
                        u.display_name as posted_by_name
                 FROM notices n
-                LEFT JOIN notice_attachments na ON n.id = na.notice_id
+                LEFT JOIN notice_attachment na ON n.id = na.notice_id
                 LEFT JOIN users u ON n.posted_by_slug = u.slug
                 WHERE n.hall_id = :hall_id
                 AND (n.end_date IS NULL OR n.end_date >= :current_date)
@@ -309,26 +310,24 @@ class Notice extends Model
         }
     }
     /**
-     * Format a notice record with its attachments
+     * Format a notice record with its attachment
      */
     private function formatNotice(array $notice): array
     {
-        if (!empty($notice['attachments'])) {
-            $attachmentsArray = [];
-            foreach (explode(',', $notice['attachments']) as $attachment) {
-                list($id, $fileName, $filePath, $fileType) = explode(':', $attachment);
-                $attachmentsArray[] = [
-                    'id' => $id,
-                    'file_name' => $fileName,
-                    'file_path' => $filePath,
-                    'file_type' => $fileType
+        if (!empty($notice['attachment'])) {
+            $attachmentParts = explode(',', $notice['attachment']);
+            $notice['attachment'] = array_map(function ($part) {
+                $parts = explode(':', $part);
+                return [
+                    'id' => $parts[0],
+                    'file_name' => $parts[1],
+                    'file_path' => $parts[2],
+                    'file_type' => $parts[3]
                 ];
-            }
-            $notice['attachments'] = $attachmentsArray;
+            }, $attachmentParts);
         } else {
-            $notice['attachments'] = [];
+            $notice['attachment'] = [];
         }
-
         return $notice;
     }
 

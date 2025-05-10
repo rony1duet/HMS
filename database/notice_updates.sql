@@ -3,8 +3,8 @@ ALTER TABLE notices
 ADD COLUMN hall_id INT,
 ADD FOREIGN KEY (hall_id) REFERENCES halls(id);
 
--- Create table for notice attachments
-CREATE TABLE notice_attachments (
+-- Create table for notice attachment
+CREATE TABLE notice_attachment (
     id INT PRIMARY KEY AUTO_INCREMENT,
     notice_id INT NOT NULL,
     file_name VARCHAR(255) NOT NULL,
@@ -18,4 +18,4 @@ CREATE TABLE notice_attachments (
 
 -- Add indexes for better performance
 CREATE INDEX idx_notice_hall ON notices(hall_id);
-CREATE INDEX idx_notice_attachments ON notice_attachments(notice_id);
+CREATE INDEX idx_notice_attachment ON notice_attachment(notice_id);
