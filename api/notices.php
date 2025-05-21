@@ -1,8 +1,9 @@
 <?php
-require_once '../../config/database.php';
-require_once '../../models/Notice.php';
-require_once '../../models/NoticeAttachment.php';
-require_once '../../includes/Session.php';
+require_once '../config/database.php';
+require_once '../models/Notice.php';
+require_once '../models/NoticeAttachment.php';
+require_once '../includes/Session.php';
+
 
 header('Content-Type: application/json');
 
@@ -83,6 +84,93 @@ try {
             break;
 
         case 'POST':
+            // Check if this is an update request
+            if (isset($_POST['action']) && $_POST['action'] === 'update') {
+                // Handle update request
+                if (!Session::hasPermission('provost')) {
+                    http_response_code(403);
+                    throw new Exception('Permission denied');
+                }
+
+                if (!isset($_POST['notice_id'])) {
+                    http_response_code(400);
+                    throw new Exception('Notice ID is required');
+                }
+
+                $noticeId = (int)$_POST['notice_id'];
+
+                // Verify notice belongs to provost's hall
+                $provostSlug = Session::getSlug();
+                $stmt = $conn->prepare("SELECT pa.hall_id FROM provost_approvals pa 
+                                          JOIN notices n ON pa.hall_id = n.hall_id
+                                          WHERE pa.slug = ? AND pa.status = 'approved' AND n.id = ?");
+                $stmt->execute([$provostSlug, $noticeId]);
+                $validNotice = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$validNotice) {
+                    http_response_code(403);
+                    throw new Exception('Not authorized to edit this notice');
+                }
+
+                // Prepare update data
+                $updateData = [
+                    'title' => trim($_POST['title']),
+                    'content' => trim($_POST['content']),
+                    'importance' => $_POST['importance'],
+                    'start_date' => $_POST['start_date'],
+                    'end_date' => !empty($_POST['end_date']) ? $_POST['end_date'] : null
+                ];
+
+                $attachmentData = [];
+                if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                    $uploadDir = '../uploads/notices/';
+                    if (!file_exists($uploadDir)) {
+                        mkdir($uploadDir, 0777, true);
+                    }
+
+                    $file = $_FILES['attachment'];
+                    $fileName = $file['name'];
+                    $fileTmpName = $file['tmp_name'];
+                    $fileType = $file['type'];
+                    $fileSize = $file['size'];
+
+                    // Validate file
+                    $allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+                    if (!in_array($fileType, $allowedTypes)) {
+                        throw new Exception('Invalid file type');
+                    }
+
+                    if ($fileSize > 5 * 1024 * 1024) { // 5MB limit
+                        throw new Exception('File size exceeds limit');
+                    }
+
+                    $uniqueName = uniqid() . '_' . $fileName;
+                    $uploadPath = $uploadDir . $uniqueName;
+
+                    if (move_uploaded_file($fileTmpName, $uploadPath)) {
+                        $attachmentData = [
+                            'file_name' => $fileName,
+                            'file_path' => $uploadPath,
+                            'file_type' => $fileType,
+                            'file_size' => $fileSize
+                        ];
+                    } else {
+                        throw new Exception('Failed to upload file');
+                    }
+                }
+
+                // Update notice
+                if (!$notice->updateNotice($noticeId, $updateData, $attachmentData)) {
+                    throw new Exception('Failed to update notice');
+                }
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Notice updated successfully'
+                ]);
+                break;
+            }
+
             // Create new notice
             if (!Session::hasPermission('provost')) {
                 http_response_code(403);
@@ -135,7 +223,7 @@ try {
 
             // Handle file upload if present (for multipart/form-data)
             if (!empty($_FILES['attachment'])) {
-                $uploadDir = '../../uploads/notices/';
+                $uploadDir = '../uploads/notices/';
                 if (!file_exists($uploadDir)) {
                     mkdir($uploadDir, 0777, true);
                 }
@@ -194,14 +282,19 @@ try {
                 throw new Exception('Permission denied');
             }
 
-            // Parse input data
-            $data = json_decode(file_get_contents('php://input'), true);
-            if (!$data || !isset($data['id'])) {
-                http_response_code(400);
-                throw new Exception('Invalid request data');
+            // Parse input data - handle both JSON and form data
+            if ($_SERVER['CONTENT_TYPE'] && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
+                $data = json_decode(file_get_contents('php://input'), true);
+            } else {
+                $data = $_POST;
             }
 
-            $noticeId = (int)$data['id'];
+            if (!$data || (!isset($data['id']) && !isset($data['notice_id']))) {
+                http_response_code(400);
+                throw new Exception('Invalid request data: Notice ID is required');
+            }
+
+            $noticeId = isset($data['id']) ? (int)$data['id'] : (int)$data['notice_id'];
 
             // Verify notice belongs to provost's hall
             $provostSlug = Session::getSlug();
@@ -232,8 +325,57 @@ try {
             }
 
             // Update notice
-            if (!$notice->updateNotice($noticeId, $updateData)) {
+            $attachmentData = [];
+            if (!$notice->updateNotice($noticeId, $updateData, $attachmentData)) {
                 throw new Exception('Failed to update notice');
+            }
+
+            // Handle file upload if present
+            if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = '../uploads/notices/';
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+
+                $file = $_FILES['attachment'];
+                $fileName = $file['name'];
+                $fileTmpName = $file['tmp_name'];
+                $fileType = $file['type'];
+                $fileSize = $file['size'];
+
+                // Validate file
+                $allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+                if (!in_array($fileType, $allowedTypes)) {
+                    throw new Exception('Invalid file type');
+                }
+
+                if ($fileSize > 5 * 1024 * 1024) { // 5MB limit
+                    throw new Exception('File size exceeds limit');
+                }
+
+                $uniqueName = uniqid() . '_' . $fileName;
+                $uploadPath = $uploadDir . $uniqueName;
+
+                if (move_uploaded_file($fileTmpName, $uploadPath)) {
+                    $attachmentData = [
+                        'file_name' => $fileName,
+                        'file_path' => $uploadPath,
+                        'file_type' => $fileType,
+                        'file_size' => $fileSize
+                    ];
+
+                    // Update notice with attachment
+                    if (!$notice->updateNotice($noticeId, $updateData, $attachmentData)) {
+                        throw new Exception('Failed to update notice with attachment');
+                    }
+                } else {
+                    throw new Exception('Failed to upload file');
+                }
+            } else {
+                // Update notice without attachment
+                if (!$notice->updateNotice($noticeId, $updateData)) {
+                    throw new Exception('Failed to update notice');
+                }
             }
 
             echo json_encode([
@@ -243,51 +385,20 @@ try {
             break;
 
         case 'DELETE':
-            // Delete notice
-            if (!Session::hasPermission('provost')) {
-                http_response_code(403);
-                throw new Exception('Permission denied');
-            }
+            if (isset($_GET['attachment_id'])) {
+                // Delete specific attachment
+                $attachmentId = (int)$_GET['attachment_id'];
 
-            if (!isset($_GET['id'])) {
-                http_response_code(400);
-                throw new Exception('Notice ID is required');
-            }
-
-            $noticeId = (int)$_GET['id'];
-
-            // Verify notice belongs to provost's hall
-            $provostSlug = Session::getSlug();
-            $stmt = $conn->prepare("SELECT pa.hall_id FROM provost_approvals pa 
-                                  JOIN notices n ON pa.hall_id = n.hall_id
-                                  WHERE pa.slug = ? AND pa.status = 'approved' AND n.id = ?");
-            $stmt->execute([$provostSlug, $noticeId]);
-            $validNotice = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$validNotice) {
-                http_response_code(403);
-                throw new Exception('Not authorized to delete this notice');
-            }
-
-            // Get attachments to delete files
-            $attachments = $noticeAttachment->getAttachment($noticeId);
-            foreach ($attachments as $attachment) {
-                if (file_exists($attachment['file_path'])) {
-                    unlink($attachment['file_path']);
+                if (!$noticeAttachment->deleteAttachmentById($attachmentId)) {
+                    throw new Exception('Failed to delete attachment');
                 }
-                $noticeAttachment->deleteAttachment($attachment['id']);
-            }
 
-            // Delete notice
-            if (!$notice->deleteNotice($noticeId)) {
-                throw new Exception('Failed to delete notice');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Attachment deleted successfully'
+                ]);
+                break;
             }
-
-            echo json_encode([
-                'success' => true,
-                'message' => 'Notice deleted successfully'
-            ]);
-            break;
 
         default:
             http_response_code(405);

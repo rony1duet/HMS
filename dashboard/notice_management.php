@@ -114,28 +114,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Update existing notice
         elseif ($_POST['action'] === 'update' && isset($_POST['notice_id'])) {
             $noticeId = (int)$_POST['notice_id'];
+            $uploadDir = '../uploads/notices/';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
 
             // Verify the notice belongs to this provost's hall
-            $existingNotice = $notice->getNoticeById($noticeId);
-            if (!$existingNotice || $existingNotice['hall_id'] != $hallId) {
-                $_SESSION['error'] = 'Notice not found or unauthorized to edit.';
-                header('Location: ' . $_SERVER['PHP_SELF']);
-                exit;
+            try {
+                $existingNotice = $notice->getNoticeById($noticeId);
+                if (!$existingNotice || $existingNotice['hall_id'] != $hallId) {
+                    $_SESSION['error'] = 'Notice not found or unauthorized to edit.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
+                }
+
+                // Validate required fields
+                if (empty($_POST['title']) || empty($_POST['content']) || empty($_POST['start_date'])) {
+                    $_SESSION['error'] = 'Title, content and start date are required fields.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
+                }
+
+                // Validate dates
+                $startDate = strtotime($_POST['start_date']);
+                $endDate = !empty($_POST['end_date']) ? strtotime($_POST['end_date']) : null;
+
+                if ($startDate === false) {
+                    $_SESSION['error'] = 'Invalid start date format.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
+                }
+
+                if ($endDate !== null) {
+                    if ($endDate === false) {
+                        $_SESSION['error'] = 'Invalid end date format.';
+                        header('Location: ' . $_SERVER['PHP_SELF']);
+                        exit;
+                    }
+                    if ($endDate < $startDate) {
+                        $_SESSION['error'] = 'End date cannot be earlier than start date.';
+                        header('Location: ' . $_SERVER['PHP_SELF']);
+                        exit;
+                    }
+                }
+
+                // Prepare notice data with proper sanitization
+                $noticeData = [
+                    'title' => trim($_POST['title']),
+                    'content' => trim($_POST['content']),
+                    'importance' => $_POST['importance'],
+                    'start_date' => $_POST['start_date'],
+                    'end_date' => !empty($_POST['end_date']) ? $_POST['end_date'] : null
+                ];
+
+                if ($notice->updateNotice($noticeId, $noticeData)) {
+                    $_SESSION['success'] = 'Notice updated successfully.';
+                } else {
+                    $_SESSION['error'] = 'Failed to update notice. Please try again.';
+                }
+            } catch (Exception $e) {
+                error_log('Error updating notice: ' . $e->getMessage());
+                $_SESSION['error'] = 'An error occurred while updating the notice.';
             }
 
-            $noticeData = [
-                'title' => trim($_POST['title']),
-                'content' => trim($_POST['content']),
-                'importance' => $_POST['importance'],
-                'start_date' => $_POST['start_date'],
-                'end_date' => !empty($_POST['end_date']) ? $_POST['end_date'] : null
-            ];
-
-            if ($notice->updateNotice($noticeId, $noticeData)) {
-                $_SESSION['success'] = 'Notice updated successfully.';
-            } else {
-                $_SESSION['error'] = 'Failed to update notice.';
-            }
             header('Location: ' . $_SERVER['PHP_SELF']);
             exit;
         }
@@ -163,12 +204,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get existing notices with pagination
+// Get existing notices with pagination and filtering
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$perPage = 10;
-$notices = $notice->getNoticesByHallId($hallId, $page, $perPage);
+$perPage = 5;
+$currentFilter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
+$notices = $notice->getNoticesByHall($hallName, $page, $perPage, $currentFilter);
+$totalNotices = $notice->countNoticesByHall($hallName, $currentFilter);
 
-// Include header
 require_once '../includes/header.php';
 ?>
 
@@ -187,11 +229,11 @@ require_once '../includes/header.php';
 
     <div class="filter-container">
         <div class="filter-tabs">
-            <a href="?filter=all" class="filter-tab <?php echo !isset($_GET['filter']) || $_GET['filter'] === 'all' ? 'active' : ''; ?>">All Notices</a>
-            <a href="?filter=urgent" class="filter-tab <?php echo isset($_GET['filter']) && $_GET['filter'] === 'urgent' ? 'active' : ''; ?>">Urgent</a>
-            <a href="?filter=important" class="filter-tab <?php echo isset($_GET['filter']) && $_GET['filter'] === 'important' ? 'active' : ''; ?>">Important</a>
-            <a href="?filter=normal" class="filter-tab <?php echo isset($_GET['filter']) && $_GET['filter'] === 'normal' ? 'active' : ''; ?>">Normal</a>
-            <a href="?filter=new" class="filter-tab <?php echo isset($_GET['filter']) && $_GET['filter'] === 'new' ? 'active' : ''; ?>">New</a>
+            <a href="?filter=all" class="filter-tab <?php echo $currentFilter === 'all' ? 'active' : ''; ?>">All</a>
+            <a href="?filter=urgent" class="filter-tab <?php echo $currentFilter === 'urgent' ? 'active' : ''; ?>">Urgent</a>
+            <a href="?filter=important" class="filter-tab <?php echo $currentFilter === 'important' ? 'active' : ''; ?>">Important</a>
+            <a href="?filter=normal" class="filter-tab <?php echo $currentFilter === 'normal' ? 'active' : ''; ?>">Normal</a>
+            <a href="?filter=new" class="filter-tab <?php echo $currentFilter === 'new' ? 'active' : ''; ?>">New</a>
         </div>
         <div class="search-box">
             <div class="input-group">
@@ -309,7 +351,7 @@ require_once '../includes/header.php';
                                 <div class="notice-attachment">
                                     <?php foreach ($noticeItem['attachment'] as $attachment): ?>
                                         <span class="attachment-badge">
-                                            <i class="fas <?php echo $attachment['file_type'] === 'pdf' ? 'fa-file-pdf' : 'fa-image'; ?>"></i>
+                                            <i class="fas <?php echo $attachment['file_type'] === 'application/pdf' ? 'fa-file-pdf' : 'fa-image'; ?>"></i>
                                             <?php echo htmlspecialchars($attachment['file_name']); ?>
                                         </span>
                                     <?php endforeach; ?>
@@ -323,21 +365,49 @@ require_once '../includes/header.php';
     </div>
 
     <!-- Pagination -->
-    <nav class="mt-4">
-        <ul class="pagination justify-content-center">
-            <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                <a class="page-link" href="?page=<?php echo $page - 1; ?>">Previous</a>
-            </li>
-            <?php for ($i = 1; $i <= ceil(count($notices) / $perPage); $i++): ?>
-                <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                    <a class="page-link" href="?page=<?php echo $i; ?>"><?php echo $i; ?></a>
+    <?php if ($totalNotices > $perPage): ?>
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                    <a class="page-link" href="?filter=<?php echo $currentFilter; ?>&page=<?php echo $page - 1; ?>">Previous</a>
                 </li>
-            <?php endfor; ?>
-            <li class="page-item <?php echo $page >= ceil(count($notices) / $perPage) ? 'disabled' : ''; ?>">
-                <a class="page-link" href="?page=<?php echo $page + 1; ?>">Next</a>
-            </li>
-        </ul>
-    </nav>
+
+                <?php
+                $totalPages = ceil($totalNotices / $perPage);
+                $maxPagesToShow = 5;
+                $startPage = max(1, min($page - floor($maxPagesToShow / 2), $totalPages - $maxPagesToShow + 1));
+                $endPage = min($startPage + $maxPagesToShow - 1, $totalPages);
+
+                // Always show first page
+                if ($startPage > 1) {
+                    echo '<li class="page-item"><a class="page-link" href="?filter=' . $currentFilter . '&page=1">1</a></li>';
+                    if ($startPage > 2) {
+                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                    }
+                }
+
+                // Show numbered pages
+                for ($i = $startPage; $i <= $endPage; $i++) {
+                    echo '<li class="page-item ' . ($i == $page ? 'active' : '') . '">';
+                    echo '<a class="page-link" href="?filter=' . $currentFilter . '&page=' . $i . '">' . $i . '</a>';
+                    echo '</li>';
+                }
+
+                // Always show last page
+                if ($endPage < $totalPages) {
+                    if ($endPage < $totalPages - 1) {
+                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                    }
+                    echo '<li class="page-item"><a class="page-link" href="?filter=' . $currentFilter . '&page=' . $totalPages . '">' . $totalPages . '</a></li>';
+                }
+                ?>
+
+                <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
+                    <a class="page-link" href="?filter=<?php echo $currentFilter; ?>&page=<?php echo $page + 1; ?>">Next</a>
+                </li>
+            </ul>
+        </nav>
+    <?php endif; ?>
 </div>
 
 <!-- Create Notice Modal -->
@@ -391,7 +461,7 @@ require_once '../includes/header.php';
                     <div class="mb-4">
                         <label for="attachment" class="form-label">Attachment</label>
                         <input type="file" class="form-control" id="attachment" name="attachment"
-                            accept=".pdf,.jpg,.jpeg,.png,.gif">
+                            accept=".pdf,.jpg,.jpeg,.png,.gif" onchange="validateFileUpload(this)">
                         <div class="form-text text-muted">Supported formats: PDF, JPG, PNG, GIF (Max 5MB)</div>
                         <div id="filePreviewContainer" class="file-preview mt-3"></div>
                     </div>
@@ -415,7 +485,7 @@ require_once '../includes/header.php';
                 <h5 class="modal-title" id="editNoticeModalLabel">Edit Notice</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="editNoticeForm" class="needs-validation" novalidate enctype="multipart/form-data">
+            <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
                 <div class="modal-body">
                     <input type="hidden" name="action" value="update">
                     <input type="hidden" name="notice_id" id="editNoticeId">
@@ -455,21 +525,16 @@ require_once '../includes/header.php';
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label">Existing Attachment</label>
-                        <div id="existingAttachment" class="d-flex flex-wrap gap-3"></div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="editAttachment" class="form-label">Add New Attachment</label>
+                        <label for="editAttachment" class="form-label">Attachment</label>
                         <input type="file" class="form-control" id="editAttachment" name="attachment"
-                            accept=".pdf,.jpg,.jpeg,.png,.gif" onchange="previewFiles(this)">
-                        <div class="form-text">Supported formats: PDF, JPG, PNG, GIF (Max 5MB each)</div>
+                            accept=".pdf,.jpg,.jpeg,.png,.gif" onchange="validateFileUpload(this)">
+                        <div class="form-text">Supported formats: PDF, JPG, PNG, GIF (Max 5MB). Only one file allowed.</div>
                         <div id="editFilePreviewContainer" class="file-preview mt-3"></div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="editSubmitBtn">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-2"></i> Save Changes
                     </button>
                 </div>
@@ -497,11 +562,120 @@ require_once '../includes/header.php';
 </div>
 
 <?php require_once '../assets/css/noticeStyle.php'; ?>
+<style>
+    /* Add to your noticeStyle.php or include in the page */
+
+    .file-preview {
+        border-radius: 6px;
+        border: 1px dashed #dee2e6;
+        padding: 10px;
+        background-color: #f8f9fa;
+    }
+
+    .file-preview:empty {
+        display: none;
+    }
+
+    .file-preview-item {
+        background-color: white;
+        border-radius: 4px;
+        padding: 8px 12px;
+        border: 1px solid #e9ecef;
+        font-size: 0.9rem;
+        color: #495057;
+        transition: all 0.2s ease;
+    }
+
+    .file-preview-item:hover {
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    }
+
+    .file-preview-item i {
+        margin-right: 8px;
+        color: #6c757d;
+    }
+
+    .file-preview-item i.fa-file-pdf {
+        color: #dc3545;
+    }
+
+    .file-preview-item i.fa-file-image {
+        color: #198754;
+    }
+
+    .file-preview-item .btn-outline-danger {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.75rem;
+        border-radius: 3px;
+    }
+
+    .file-preview-item .btn-outline-danger:hover {
+        background-color: #f8d7da;
+        color: #dc3545;
+        border-color: #f5c2c7;
+    }
+</style>
 
 <script>
+    let quill, editQuill;
+
+    /**
+     * Validate file upload to ensure only one file is allowed
+     * @param {HTMLInputElement} input - The file input element
+     */
+    function validateFileUpload(input) {
+        // Check if there are existing attachments
+        const filePreviewContainer = input.id === 'editAttachment' ?
+            document.getElementById('editFilePreviewContainer') :
+            document.getElementById('filePreviewContainer');
+
+        // If there are existing attachments and a new file is selected, show warning
+        if (filePreviewContainer.children.length > 0 && input.files.length > 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Warning',
+                text: 'Uploading a new file will replace the existing attachment. Only one file is allowed.',
+                showCancelButton: true,
+                confirmButtonText: 'Continue',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (!result.isConfirmed) {
+                    // Reset the file input if user cancels
+                    input.value = '';
+                }
+            });
+        }
+
+        // Validate file size
+        if (input.files.length > 0) {
+            const file = input.files[0];
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                Swal.fire({
+                    icon: 'error',
+                    title: 'File Too Large',
+                    text: 'The file size exceeds the 5MB limit.'
+                });
+                input.value = '';
+                return;
+            }
+
+            // Validate file type
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+            if (!allowedTypes.includes(file.type)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid File Type',
+                    text: 'Only PDF, JPEG, PNG, and GIF files are allowed.'
+                });
+                input.value = '';
+                return;
+            }
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize Quill editor for create modal
-        const quill = new Quill('#editor-container', {
+        quill = new Quill('#editor-container', {
             theme: 'snow',
             modules: {
                 toolbar: [
@@ -543,7 +717,7 @@ require_once '../includes/header.php';
         });
 
         // Initialize Quill editor for edit modal
-        const editQuill = new Quill('#editEditorContainer', {
+        editQuill = new Quill('#editEditorContainer', {
             theme: 'snow',
             modules: {
                 toolbar: [
@@ -751,39 +925,22 @@ require_once '../includes/header.php';
                 // Populate form fields
                 document.getElementById('editNoticeId').value = data.id;
                 document.getElementById('editTitle').value = data.title;
-
-                // Set Quill editor content
                 editQuill.root.innerHTML = data.content;
                 document.getElementById('editContent').value = data.content;
-
-                // Other fields
                 document.getElementById('editImportance').value = data.importance;
                 document.getElementById('editStartDate').value = data.start_date.split(' ')[0];
                 document.getElementById('editEndDate').value = data.end_date ? data.end_date.split(' ')[0] : '';
-
-                // Set min date for end date
                 document.getElementById('editEndDate').min = data.start_date.split(' ')[0];
 
-                // Display existing attachments
-                const attachmentContainer = document.getElementById('existingAttachment');
-                attachmentContainer.innerHTML = '';
+                // Clear any previous file previews
+                const filePreviewContainer = document.getElementById('editFilePreviewContainer');
+                filePreviewContainer.innerHTML = '';
 
-                if (data.attachment && data.attachment.length > 0) {
-                    data.attachment.forEach(att => {
-                        const attachmentItem = document.createElement('div');
-                        attachmentItem.className = 'attachment-item d-flex align-items-center mb-2';
-                        attachmentItem.innerHTML = `
-                        <i class="fas ${att.file_type === 'pdf' ? 'fa-file-pdf' : 'fa-image'} me-2"></i>
-                        <span>${att.file_name}</span>
-                        <button type="button" class="btn btn-sm btn-danger ms-2" 
-                                onclick="deleteAttachment(${att.id}, ${noticeId})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    `;
-                        attachmentContainer.appendChild(attachmentItem);
+                // Handle attachments
+                if (data.attachments && data.attachments.length > 0) {
+                    data.attachments.forEach(att => {
+                        addFilePreview(att, filePreviewContainer, noticeId);
                     });
-                } else {
-                    attachmentContainer.innerHTML = '<p class="text-muted">No attachment</p>';
                 }
 
                 // Show modal
@@ -795,10 +952,104 @@ require_once '../includes/header.php';
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Failed to load notice data'
+                    text: 'Error: ' + error.message,
                 });
             });
     }
+
+
+    // Update the form submission to use FormData
+    document.querySelector('#editNoticeModal form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Get content from Quill editor and update hidden textarea
+        const editorContent = editQuill.root.innerHTML;
+        document.getElementById('editContent').value = editorContent;
+
+        // Create FormData object from form
+        const formData = new FormData(this);
+        formData.append('action', 'update');
+
+        // Show loading indicator
+        Swal.fire({
+            title: 'Updating notice...',
+            text: 'Please wait while we update the notice',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        fetch('/HMS/api/notices.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: data.message || 'Notice updated successfully'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.error || 'Failed to update notice'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error updating notice:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'An unexpected error occurred'
+                });
+            });
+    });
+    /**
+     * Add file preview to the container
+     * @param {Object} attachment - The attachment object
+     * @param {HTMLElement} container - The container element
+     * @param {number} noticeId - The ID of the notice
+     */
+    function addFilePreview(attachment, container, noticeId) {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-preview-item d-flex align-items-center mb-2';
+
+        let iconClass = 'fa-file';
+        if (attachment.file_type && attachment.file_type.includes('pdf')) {
+            iconClass = 'fa-file-pdf';
+        } else if (attachment.file_type && (
+                attachment.file_type.includes('jpg') ||
+                attachment.file_type.includes('jpeg') ||
+                attachment.file_type.includes('png') ||
+                attachment.file_type.includes('gif')
+            )) {
+            iconClass = 'fa-file-image';
+        }
+
+        fileItem.innerHTML = `
+        <i class="fas ${iconClass} me-2"></i>
+        <span class="me-auto">${attachment.file_name}</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" 
+                onclick="deleteAttachment(${attachment.id}, ${noticeId})">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+        container.appendChild(fileItem);
+    }
+
 
     /**
      * Delete attachment
@@ -816,7 +1067,7 @@ require_once '../includes/header.php';
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`/HMS/api/notices/attachment/${attachmentId}`, {
+                fetch(`/HMS/api/notices.php?attachment_id=${attachmentId}`, {
                         method: 'DELETE'
                     })
                     .then(response => response.json())
@@ -893,27 +1144,35 @@ require_once '../includes/header.php';
             document.getElementById('editFilePreviewContainer') :
             document.getElementById('filePreviewContainer');
 
-        previewContainer.innerHTML = '';
-
         if (input.files.length > 0) {
             const file = input.files[0];
             const fileType = file.name.split('.').pop().toLowerCase();
 
             const fileItem = document.createElement('div');
-            fileItem.className = 'file-preview-item';
+            fileItem.className = 'file-preview-item d-flex align-items-center mb-2';
 
             let iconClass = 'fa-file';
             if (fileType === 'pdf') iconClass = 'fa-file-pdf';
             else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileType)) iconClass = 'fa-file-image';
 
             fileItem.innerHTML = `
-            <i class="fas ${iconClass}"></i>
-            ${file.name} (${(file.size / 1024).toFixed(1)}KB)
+            <i class="fas ${iconClass} me-2"></i>
+            <span class="me-auto">${file.name} (${(file.size / 1024).toFixed(1)}KB)</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" 
+                    onclick="clearFileInput(this, '${input.id}')">
+                <i class="fas fa-times"></i>
+            </button>
         `;
 
-            previewContainer.appendChild(fileItem);
+            // Add new file preview at the top
+            if (previewContainer.firstChild) {
+                previewContainer.insertBefore(fileItem, previewContainer.firstChild);
+            } else {
+                previewContainer.appendChild(fileItem);
+            }
         }
     }
+
 
     /**
      * Open image preview in a modal
@@ -931,6 +1190,16 @@ require_once '../includes/header.php';
                 image: 'img-fluid'
             }
         });
+    }
+
+    /**
+     * Clear file input
+     * @param {HTMLElement} button - The button element
+     * @param {string} inputId - The ID of the input element
+     */
+    function clearFileInput(button, inputId) {
+        document.getElementById(inputId).value = '';
+        button.closest('.file-preview-item').remove();
     }
 </script>
 

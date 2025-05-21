@@ -1,12 +1,4 @@
 <?php
-
-/**
- * Header template for the HMS (Hostel Management System)
- * 
- * Includes all necessary styles, scripts, and navigation elements
- */
-
-// Function to display alert messages using SweetAlert2
 function showAlert($title, $message, $type)
 {
     if (is_array($message)) {
@@ -55,7 +47,7 @@ function getDashboardLink($role)
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title><?= isset($title) ? htmlspecialchars($title) : 'Hostel Management System' ?></title>
+    <title><?= isset($title) ? htmlspecialchars($title) : 'Hall Management System' ?></title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
@@ -72,6 +64,11 @@ function getDashboardLink($role)
     <!-- Quill Editor (consolidated to single version) -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/HMS/assets/css/style.css">

@@ -247,7 +247,12 @@ class Notice extends Model
             }
 
             $sql = "UPDATE notices
-                SET title = :title, content = :content, importance = :importance, start_date = :start_date, end_date = :end_date
+                SET title = :title, 
+                    content = :content, 
+                    importance = :importance, 
+                    start_date = :start_date, 
+                    end_date = :end_date,
+                    updated_at = NOW()
                 WHERE id = :notice_id";
 
             $stmt = $this->conn->prepare($sql);
@@ -261,6 +266,10 @@ class Notice extends Model
             ]);
 
             if (!empty($attachment)) {
+                // Delete existing attachments first
+                $this->attachmentModel->deleteAttachment($noticeId);
+
+                // Add new attachment
                 if (!$this->attachmentModel->createAttachment($noticeId, $attachment)) {
                     throw new Exception('Failed to save attachment');
                 }
@@ -270,7 +279,7 @@ class Notice extends Model
             return true;
         } catch (Exception $e) {
             $this->conn->rollBack();
-            error_log($e->getMessage());
+            error_log('Error in updateNotice: ' . $e->getMessage());
             return false;
         }
     }
@@ -309,6 +318,7 @@ class Notice extends Model
             return [];
         }
     }
+
     /**
      * Format a notice record with its attachment
      */
@@ -336,11 +346,8 @@ class Notice extends Model
      */
     private function validateNoticeData(array $data): bool
     {
-        if (
-            empty($data['title']) || empty($data['content']) ||
-            empty($data['posted_by_slug']) || empty($data['hall_id']) ||
-            empty($data['importance']) || empty($data['start_date'])
-        ) {
+        // Check required fields for all operations
+        if (empty($data['title']) || empty($data['content']) || empty($data['importance']) || empty($data['start_date'])) {
             return false;
         }
 
@@ -349,7 +356,7 @@ class Notice extends Model
         }
 
         $startDate = strtotime($data['start_date']);
-        if ($startDate === false || $startDate < strtotime('today')) {
+        if ($startDate === false) {
             return false;
         }
 
@@ -360,13 +367,20 @@ class Notice extends Model
             }
         }
 
-        try {
-            $stmt = $this->conn->prepare("SELECT id FROM halls WHERE id = :hall_id");
-            $stmt->execute([':hall_id' => $data['hall_id']]);
-            return (bool) $stmt->fetch();
-        } catch (Exception $e) {
-            error_log($e->getMessage());
-            return false;
+        // Only check hall_id if it's provided (needed for create but not for update)
+        if (!empty($data['hall_id'])) {
+            try {
+                $stmt = $this->conn->prepare("SELECT id FROM halls WHERE id = :hall_id");
+                $stmt->execute([':hall_id' => $data['hall_id']]);
+                if (!$stmt->fetch()) {
+                    return false;
+                }
+            } catch (Exception $e) {
+                error_log($e->getMessage());
+                return false;
+            }
         }
+
+        return true;
     }
 }

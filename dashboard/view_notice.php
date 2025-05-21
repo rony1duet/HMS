@@ -40,7 +40,7 @@ $notice = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Get notice attachments
 $attachmentModel = new NoticeAttachment($conn);
-$attachments = $attachmentModel->getAttachments($noticeId);
+$attachments = $attachmentModel->getAttachmentByNoticeId($noticeId);
 
 if (!$notice) {
     header('Location: /HMS/dashboard/student.php');

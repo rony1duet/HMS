@@ -58,13 +58,16 @@ class NoticeAttachment extends Model
     public function deleteAttachment(int $noticeId): bool
     {
         try {
-            $attachment = $this->getAttachment($noticeId);
+            $attachments = $this->getAttachment($noticeId);
             $sql = "DELETE FROM notice_attachment WHERE notice_id = :notice_id";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([':notice_id' => $noticeId]);
 
-            if (file_exists($attachment['file_path'])) {
-                unlink($attachment['file_path']);
+            // Delete all attachment files
+            foreach ($attachments as $attachment) {
+                if (file_exists($attachment['file_path'])) {
+                    unlink($attachment['file_path']);
+                }
             }
             return true;
         } catch (Exception $e) {
