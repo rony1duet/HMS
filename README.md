@@ -389,6 +389,5 @@ For immediate assistance, contact the system administrator or raise an issue on 
 ---
 
 <div align="center">
-  <p>Developed with ❤️ for Dhaka University of Engineering & Technology</p>
-  <p>© 2025 DUET HMS Team</p>
+  <p>Developed with @ MD RONY HOSSEN <p>
 </div>
