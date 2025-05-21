@@ -151,7 +151,7 @@ The system utilizes REST principles for API endpoints and follows MVC design pat
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/HMS.git
+   git clone https://github.com/rony1duet/HMS.git
    cd HMS
    ```
 
@@ -381,8 +381,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For support and questions about the Hall Management System:
 
 - **Email:** 2204045@student.duet.ac.bd
-- **Issue Tracker:** [GitHub Issues](https://github.com/yourusername/HMS/issues)
-- **Documentation:** [Project Wiki](https://github.com/yourusername/HMS/wiki)
+- **Issue Tracker:** [GitHub Issues](https://github.com/rony1duet/HMS/issues)
+- **Documentation:** [Project Wiki](https://github.com/rony1duet/HMS/wiki)
 
 For immediate assistance, contact the system administrator or raise an issue on the project repository.
 
