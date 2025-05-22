@@ -5,6 +5,7 @@ require_once '../models/User.php';
 require_once '../models/Notice.php';
 require_once '../models/NoticeAttachment.php';
 require_once '../includes/Session.php';
+require_once '../includes/html_purifier.php';
 
 Session::init();
 
@@ -221,6 +222,9 @@ require_once '../includes/header.php';
             <p class="page-subtitle">Manage and publish notices for your hall</p>
         </div>
         <div class="d-flex align-items-center gap-3">
+            <span class="hall-badge me-2">
+                <i class="fas fa-building"></i> <?php echo htmlspecialchars($hallName); ?>
+            </span>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createNoticeModal">
                 <i class="fas fa-plus me-2"></i>New Notice
             </button>
@@ -277,13 +281,12 @@ require_once '../includes/header.php';
 
     <div class="row">
         <div class="col-12">
-            <?php if (empty($notices)): ?>
-                <div class="empty-state">
+            <?php if (empty($notices)): ?> <div class="empty-state">
                     <div class="empty-state-icon">
                         <i class="fas fa-clipboard"></i>
                     </div>
-                    <h4>No Notices Yet</h4>
-                    <p class="text-muted">You haven't created any notices yet. Get started by creating your first notice.</p>
+                    <h3 class="empty-state-title">No Notices Yet</h3>
+                    <p class="empty-state-text">You haven't created any <?php echo $currentFilter !== 'all' ? strtolower($currentFilter) : ''; ?> notices yet. Get started by creating your first notice.</p>
                 </div>
             <?php else: ?>
                 <div class="notices-list">
@@ -293,20 +296,60 @@ require_once '../includes/header.php';
                         $importanceClass = strtolower($noticeItem['importance']);
                         $hasAttachment = !empty($noticeItem['attachment']);
                         ?>
-                        <div class="notice-card <?php echo $importanceClass; ?>" data-id="<?php echo $noticeItem['id']; ?>">
+                        <div class="notice-card <?php echo $importanceClass; ?>">
                             <div class="notice-header">
-                                <div class="notice-title-section">
-                                    <h3 class="notice-title"><?php echo htmlspecialchars($noticeItem['title']); ?></h3>
-                                    <div class="notice-badges">
-                                        <span class="notice-badge <?php echo $importanceClass; ?>">
-                                            <?php echo ucfirst($importanceClass); ?>
+                                <h3 class="notice-title"><?php echo htmlspecialchars($noticeItem['title']); ?></h3>
+                                <div class="notice-badges">
+                                    <span class="notice-badge <?php echo $importanceClass; ?>">
+                                        <?php echo ucfirst($importanceClass); ?>
+                                    </span>
+                                    <?php if ($isNew): ?>
+                                        <span class="notice-badge new">New</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="notice-content">
+                                <?php
+                                $purifiedContent = purify_html($noticeItem['content']);
+                                $plainContent = strip_tags($purifiedContent);
+                                $plainContent = preg_replace('/\s+/', ' ', $plainContent);
+                                $plainContent = trim($plainContent);
+                                $limitedContent = mb_substr($plainContent, 0, 200);
+                                echo htmlspecialchars($limitedContent) . (mb_strlen($plainContent) > 200 ? '...' : '');
+                                ?>
+                            </div>
+                            <div class="notice-footer">
+                                <div class="notice-meta">
+                                    <span class="notice-meta-item">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        <?php echo date('M j, Y', strtotime($noticeItem['start_date'])); ?>
+                                    </span>
+                                    <?php if ($noticeItem['end_date']): ?>
+                                        <span class="notice-meta-item">
+                                            <i class="fas fa-calendar-check"></i>
+                                            Valid until <?php echo date('M j, Y', strtotime($noticeItem['end_date'])); ?>
                                         </span>
-                                        <?php if ($isNew): ?>
-                                            <span class="notice-badge new">New</span>
-                                        <?php endif; ?>
-                                    </div>
+                                    <?php endif; ?>
+                                    <span class="notice-meta-item">
+                                        <i class="fas fa-clock"></i>
+                                        <?php echo date('g:i A', strtotime($noticeItem['created_at'])); ?>
+                                    </span>
+                                    <?php if ($hasAttachment): ?>
+                                        <?php foreach ($noticeItem['attachment'] as $attachment): ?>
+                                            <span class="attachment-badge">
+                                                <i class="fas <?php
+                                                                $fileType = strtolower(pathinfo($attachment['file_name'], PATHINFO_EXTENSION));
+                                                                echo $fileType === 'pdf' ? 'fa-file-pdf' : 'fa-file-image';
+                                                                ?>"></i>
+                                                <?php echo htmlspecialchars($attachment['file_name']); ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="notice-actions">
+                                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="viewNotice(<?php echo $noticeItem['id']; ?>)">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-primary me-2" onclick="editNotice(<?php echo $noticeItem['id']; ?>)">
                                         <i class="fas fa-edit"></i>
                                     </button>
@@ -315,98 +358,53 @@ require_once '../includes/header.php';
                                     </button>
                                 </div>
                             </div>
-
-                            <div class="notice-content">
-                                <?php echo htmlspecialchars(substr(strip_tags($noticeItem['content']), 0, 200)) . (strlen(strip_tags($noticeItem['content'])) > 200 ? '...' : ''); ?>
-                            </div>
-
-                            <div class="notice-footer">
-                                <div class="notice-meta">
-                                    <span class="notice-meta-item">
-                                        <i class="fas fa-calendar-alt"></i>
-                                        <?php echo date('M j, Y', strtotime($noticeItem['start_date'])); ?>
-                                        <?php if ($noticeItem['end_date']): ?>
-                                            - <?php echo date('M j, Y', strtotime($noticeItem['end_date'])); ?>
-                                        <?php endif; ?>
-                                    </span>
-                                    <span class="notice-meta-item">
-                                        <i class="fas fa-clock"></i>
-                                        <?php echo date('g:i A', strtotime($noticeItem['created_at'])); ?>
-                                    </span>
-                                    <?php if ($hasAttachment): ?>
-                                        <span class="notice-meta-item">
-                                            <i class="fas fa-paperclip"></i>
-                                            <?php echo count($noticeItem['attachment']) . ' attachment' . (count($noticeItem['attachment']) > 1 ? 's' : ''); ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </div>
-
-                                <button class="btn btn-primary btn-sm view-btn" onclick="viewNotice(<?php echo $noticeItem['id']; ?>)">
-                                    View Details
-                                    <i class="fas fa-arrow-right ms-1"></i>
-                                </button>
-                            </div>
-
-                            <?php if ($hasAttachment): ?>
-                                <div class="notice-attachment">
-                                    <?php foreach ($noticeItem['attachment'] as $attachment): ?>
-                                        <span class="attachment-badge">
-                                            <i class="fas <?php echo $attachment['file_type'] === 'application/pdf' ? 'fa-file-pdf' : 'fa-image'; ?>"></i>
-                                            <?php echo htmlspecialchars($attachment['file_name']); ?>
-                                        </span>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
         </div>
-    </div>
-
-    <!-- Pagination -->
-    <?php if ($totalNotices > $perPage): ?>
-        <nav class="mt-4">
-            <ul class="pagination justify-content-center">
-                <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                    <a class="page-link" href="?filter=<?php echo $currentFilter; ?>&page=<?php echo $page - 1; ?>">Previous</a>
-                </li>
+    </div> <!-- Pagination --> <?php if ($totalNotices > $perPage): ?>
+        <div class="pagination-container">
+            <div class="pagination">
+                <a href="?filter=<?php echo $currentFilter; ?>&page=<?php echo max(1, $page - 1); ?>"
+                    class="pagination-btn <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
 
                 <?php
-                $totalPages = ceil($totalNotices / $perPage);
-                $maxPagesToShow = 5;
-                $startPage = max(1, min($page - floor($maxPagesToShow / 2), $totalPages - $maxPagesToShow + 1));
-                $endPage = min($startPage + $maxPagesToShow - 1, $totalPages);
+                                    $totalPages = ceil($totalNotices / $perPage);
+                                    $maxPagesToShow = 5;
+                                    $startPage = max(1, min($page - floor($maxPagesToShow / 2), $totalPages - $maxPagesToShow + 1));
+                                    $endPage = min($startPage + $maxPagesToShow - 1, $totalPages);
 
-                // Always show first page
-                if ($startPage > 1) {
-                    echo '<li class="page-item"><a class="page-link" href="?filter=' . $currentFilter . '&page=1">1</a></li>';
-                    if ($startPage > 2) {
-                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
-                    }
-                }
+                                    // Always show first page
+                                    if ($startPage > 1) {
+                                        echo '<a href="?filter=' . $currentFilter . '&page=1" class="pagination-btn">1</a>';
+                                        if ($startPage > 2) {
+                                            echo '<span class="pagination-btn disabled">...</span>';
+                                        }
+                                    }
 
-                // Show numbered pages
-                for ($i = $startPage; $i <= $endPage; $i++) {
-                    echo '<li class="page-item ' . ($i == $page ? 'active' : '') . '">';
-                    echo '<a class="page-link" href="?filter=' . $currentFilter . '&page=' . $i . '">' . $i . '</a>';
-                    echo '</li>';
-                }
+                                    // Show numbered pages
+                                    for ($i = $startPage; $i <= $endPage; $i++) {
+                                        echo '<a href="?filter=' . $currentFilter . '&page=' . $i . '" class="pagination-btn ' . ($i == $page ? 'active' : '') . '">' . $i . '</a>';
+                                    }
 
-                // Always show last page
-                if ($endPage < $totalPages) {
-                    if ($endPage < $totalPages - 1) {
-                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
-                    }
-                    echo '<li class="page-item"><a class="page-link" href="?filter=' . $currentFilter . '&page=' . $totalPages . '">' . $totalPages . '</a></li>';
-                }
+                                    // Always show last page
+                                    if ($endPage < $totalPages) {
+                                        if ($endPage < $totalPages - 1) {
+                                            echo '<span class="pagination-btn disabled">...</span>';
+                                        }
+                                        echo '<a href="?filter=' . $currentFilter . '&page=' . $totalPages . '" class="pagination-btn">' . $totalPages . '</a>';
+                                    }
                 ?>
 
-                <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                    <a class="page-link" href="?filter=<?php echo $currentFilter; ?>&page=<?php echo $page + 1; ?>">Next</a>
-                </li>
-            </ul>
-        </nav>
+                <a href="?filter=<?php echo $currentFilter; ?>&page=<?php echo min($totalPages, $page + 1); ?>"
+                    class="pagination-btn <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -545,8 +543,8 @@ require_once '../includes/header.php';
 
 <!-- Notice Detail Modal -->
 <div class="modal fade" id="noticeDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content notice-detail-modal">
             <div class="modal-header bg-light">
                 <h5 class="modal-title" id="noticeDetailTitle"></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -555,21 +553,657 @@ require_once '../includes/header.php';
                 <!-- Content loaded dynamically -->
             </div>
             <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" id="editNoticeBtn">
+                        <i class="fas fa-edit me-1"></i> Edit Notice
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+    /* Notice Detail Modal Styling */
+    .notice-detail-modal {
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .notice-detail-modal .modal-header {
+        border-bottom: none;
+        padding: 1.5rem 1.5rem 0.5rem;
+        background-color: var(--light);
+    }
+
+    .notice-detail-modal .modal-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--dark);
+    }
+
+    .notice-detail-modal .modal-body {
+        padding: 0.5rem 1.5rem 1.5rem;
+    }
+
+    .notice-detail-modal .modal-footer {
+        border-top: none;
+        padding: 1rem 1.5rem 1.5rem;
+    }
+
+    .notice-detail-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .notice-detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .notice-detail-badge {
+        padding: 0.35rem 1rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .notice-detail-badge.urgent {
+        background-color: rgba(247, 37, 133, 0.1);
+        color: var(--danger);
+    }
+
+    .notice-detail-badge.important {
+        background-color: rgba(248, 150, 30, 0.1);
+        color: var(--warning);
+    }
+
+    .notice-detail-badge.normal {
+        background-color: rgba(72, 149, 239, 0.1);
+        color: var(--info);
+    }
+
+    .notice-detail-date {
+        font-size: 0.9rem;
+        color: var(--gray);
+    }
+
+    .notice-detail-content {
+        margin-bottom: 2rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding-top: 1.5rem;
+    }
+
+    .notice-detail-footer {
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding-top: 1.5rem;
+    }
+
+    .notice-detail-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .notice-info-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .notice-info-item i {
+        font-size: 1.2rem;
+        color: var(--primary);
+        width: 24px;
+        text-align: center;
+        margin-top: 0.2rem;
+    }
+
+    .info-label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--gray);
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        font-weight: 500;
+        color: var(--dark);
+    }
+
+    .notice-detail-attachments {
+        margin-top: 2rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding-top: 1.5rem;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 1.25rem;
+    }
+
+    .section-title i {
+        color: var(--primary);
+    }
+
+    .attachment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+
+    .attachment-card {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        transition: var(--transition);
+        background-color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .attachment-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-light);
+    }
+
+    .attachment-preview {
+        height: 160px;
+        background: var(--light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .attachment-preview img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        cursor: pointer;
+    }
+
+    .attachment-preview .file-icon {
+        font-size: 3rem;
+        color: var(--primary);
+    }
+
+    .attachment-preview .pdf-icon {
+        color: #e63946;
+    }
+
+    .attachment-preview .image-icon {
+        color: #4361ee;
+    }
+
+    .attachment-info {
+        padding: 1rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .attachment-name {
+        font-weight: 500;
+        color: var(--dark);
+        margin-bottom: 0.5rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .attachment-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: var(--gray);
+    }
+
+    /* Attachment styles for notice cards */
+    .notice-attachments {
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px dashed rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .attachment-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(0, 0, 0, 0.05);
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--border-radius);
+        font-size: 0.75rem;
+        transition: var(--transition);
+    }
+
+    .attachment-badge:hover {
+        background: rgba(67, 97, 238, 0.1);
+    }
+
+    .attachment-badge i {
+        font-size: 1rem;
+    }
+
+    .attachment-badge i.fa-file-pdf {
+        color: #e63946;
+    }
+
+    .attachment-badge i.fa-image {
+        color: #4361ee;
+    }
+
+    .attachment-name {
+        color: var(--dark);
+    }
+
+    .attachment-size {
+        color: var(--gray);
+        margin-left: 0.25rem;
+    }
+
+    .attachment-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .btn-edit {
+        background-color: var(--primary-light);
+        color: var(--primary);
+        border: none;
+        transition: var(--transition);
+    }
+
+    .btn-edit:hover {
+        background-color: var(--primary);
+        color: var(--white);
+    }
+
+    /* Quill.js content styling */
+    .ql-content {
+        line-height: 1.6;
+    }
+
+    .ql-content p {
+        margin-bottom: 1rem;
+    }
+
+    .ql-content h1,
+    .ql-content h2,
+    .ql-content h3,
+    .ql-content h4,
+    .ql-content h5,
+    .ql-content h6 {
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .ql-content ul,
+    .ql-content ol {
+        padding-left: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .ql-content blockquote {
+        border-left: 4px solid #e9ecef;
+        padding-left: 1rem;
+        color: #6c757d;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .ql-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 4px;
+    }
+
+    .ql-content a {
+        color: var(--primary);
+        text-decoration: underline;
+    }
+
+    /* Fix for image preview in modal */
+    .image-preview-modal {
+        max-width: 90vw;
+        max-height: 90vh;
+    }
+
+    /* Additional mobile responsive styles for modal */
+    @media (max-width: 576px) {
+        .modal-dialog {
+            margin: 0.5rem;
+        }
+
+        .modal-header {
+            padding: 1rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+        }
+
+        .notice-detail-info {
+            gap: 1.5rem;
+        }
+
+        .notice-info-item {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .notice-info-item i {
+            margin-bottom: 0.25rem;
+        }
+
+        .attachment-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 <?php require_once '../assets/css/noticeStyle.php'; ?>
 <style>
-    /* Add to your noticeStyle.php or include in the page */
+    :root {
+        --primary: #4361ee;
+        --primary-light: #e6e9ff;
+        --secondary: #3f37c9;
+        --danger: #f72585;
+        --warning: #f8961e;
+        --info: #4895ef;
+        --success: #4cc9f0;
+        --light: #f8f9fa;
+        --dark: #212529;
+        --gray: #6c757d;
+        --white: #ffffff;
+        --border-radius: 8px;
+        --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --transition: all 0.3s ease;
+        --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
 
-    .file-preview {
-        border-radius: 6px;
-        border: 1px dashed #dee2e6;
-        padding: 10px;
+    .notices-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--dark);
+    }
+
+    .page-subtitle {
+        color: var(--gray);
+        margin: 0.25rem 0 0;
+        font-size: 1rem;
+    }
+
+    .hall-badge {
+        background-color: var(--primary-light);
+        color: var(--primary);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-container {
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .filter-label {
+        font-weight: 600;
+        color: var(--dark);
+        font-size: 0.875rem;
+    }
+
+    .filter-tabs {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-tab {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: var(--light);
+        color: var(--gray);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        cursor: pointer;
+        transition: var(--transition);
+        text-decoration: none;
+    }
+
+    .filter-tab:hover {
+        background: var(--primary-light);
+        color: var(--primary);
+    }
+
+    .filter-tab.active {
+        background: var(--primary);
+        color: var(--white);
+        border-color: var(--primary);
+    }
+
+    .search-box {
+        max-width: 300px;
+        width: 100%;
+    }
+
+    .notice-card {
+        background: var(--white);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: var(--box-shadow);
+        border-left: 4px solid var(--info);
+        transition: var(--transition);
+    }
+
+    .notice-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .notice-card.urgent {
+        border-left-color: var(--danger);
+    }
+
+    .notice-card.important {
+        border-left-color: var(--warning);
+    }
+
+    .notice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .notice-title-section {
+        flex: 1;
+    }
+
+    .notice-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--dark);
+    }
+
+    .notice-badges {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.25rem;
+    }
+
+    .notice-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .notice-badge.urgent {
+        background-color: rgba(247, 37, 133, 0.1);
+        color: var(--danger);
+    }
+
+    .notice-badge.important {
+        background-color: rgba(248, 150, 30, 0.1);
+        color: var(--warning);
+    }
+
+    .notice-badge.normal {
+        background-color: rgba(72, 149, 239, 0.1);
+        color: var(--info);
+    }
+
+    .notice-badge.new {
+        background-color: rgba(76, 201, 240, 0.1);
+        color: var(--success);
+    }
+
+    .notice-content {
+        color: var(--dark);
+        margin: 1rem 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.5;
+    }
+
+    .notice-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .notice-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .notice-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        color: var(--gray);
+        font-size: 0.875rem;
+    }
+
+    .notice-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .view-btn {
+        padding: 0.5rem 1.25rem;
+        border-radius: var(--border-radius);
+        background: var(--primary);
+        color: var(--white);
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .view-btn:hover {
+        background: var(--secondary);
+        color: var(--white);
+        transform: translateY(-1px);
+    }
+
+    .empty-state {
         background-color: #f8f9fa;
+        border-radius: var(--border-radius);
+        padding: 60px 30px;
+        text-align: center;
+        border: 2px dashed #dee2e6;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        color: #adb5bd;
+        margin-bottom: 20px;
+        animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+
+        0%,
+        20%,
+        50%,
+        80%,
+        100% {
+            transform: translateY(0);
+        }
+
+        40% {
+            transform: translateY(-20px);
+        }
+
+        60% {
+            transform: translateY(-10px);
+        }
+    }
+
+    /* File preview styles */
+    .file-preview {
+        border-radius: var(--border-radius);
+        border: 1px dashed #dee2e6;
+        padding: 15px;
+        background-color: #f8f9fa;
+        margin-top: 15px;
     }
 
     .file-preview:empty {
@@ -578,16 +1212,21 @@ require_once '../includes/header.php';
 
     .file-preview-item {
         background-color: white;
-        border-radius: 4px;
-        padding: 8px 12px;
+        border-radius: var(--border-radius);
+        padding: 10px 15px;
         border: 1px solid #e9ecef;
         font-size: 0.9rem;
         color: #495057;
-        transition: all 0.2s ease;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        margin-bottom: 8px;
     }
 
     .file-preview-item:hover {
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
     }
 
     .file-preview-item i {
@@ -597,6 +1236,82 @@ require_once '../includes/header.php';
 
     .file-preview-item i.fa-file-pdf {
         color: #dc3545;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .filter-container {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .search-box {
+            max-width: 100%;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .notice-header {
+            flex-direction: column;
+        }
+
+        .notice-title-section {
+            margin-bottom: 1rem;
+        }
+
+        .notice-actions {
+            margin-top: 0.5rem;
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+        .notice-meta {
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .notice-footer {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+        }
+
+        .view-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+        }
+
+        .notice-badges {
+            margin-top: 0.5rem;
+        }
+
+        .notice-attachments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .attachment-badge {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--border-radius);
+            background: rgba(0, 0, 0, 0.03);
+        }
+
+        .attachment-size {
+            margin-left: auto;
+            padding-left: 0.5rem;
+        }
     }
 
     .file-preview-item i.fa-file-image {
@@ -617,6 +1332,21 @@ require_once '../includes/header.php';
 </style>
 
 <script>
+    /**
+     * Format file size in bytes to human-readable format
+     * @param {number} bytes - The file size in bytes
+     * @return {string} The formatted file size with unit
+     */
+    function formatFileSize(bytes) {
+        if (!bytes || bytes === 0) return '0 Bytes';
+
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
     let quill, editQuill;
 
     /**
@@ -846,59 +1576,138 @@ require_once '../includes/header.php';
                 return response.json();
             })
             .then(data => {
-                // Format importance badge class
-                const importanceClass = data.importance === 'urgent' ? 'danger' :
-                    (data.importance === 'important' ? 'warning' : 'info');
+                // Format date strings
+                const createdDate = new Date(data.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const startDate = new Date(data.start_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                const endDate = data.end_date ? new Date(data.end_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : null;
 
-                // Format attachment HTML if any
+                // Set modal title
+                document.getElementById('noticeDetailTitle').textContent = data.title;
+
+                // Format attachments if any
                 let attachmentHtml = '';
                 if (data.attachment && data.attachment.length > 0) {
                     attachmentHtml = `
-                    <div class="notice-attachment">
-                        <h6 class="mb-3">Attachment</h6>
-                        <div class="d-flex flex-wrap gap-3">
-                            ${data.attachment.map(att => `
-                                <a href="${att.file_path}" 
-                                   class="attachment-item ${att.file_type === 'pdf' ? 'pdf' : 'image'}" 
-                                   target="_blank"
-                                   ${att.file_type === 'image' ? `onclick="previewImage('${att.file_path}'); return false;"` : ''}>
-                                    <i class="fas fa-${att.file_type === 'pdf' ? 'file-pdf' : 'image'} fa-2x"></i>
-                                    <span>${att.file_name}</span>
-                                </a>
-                            `).join('')}
+                    <div class="notice-detail-attachments">
+                        <h6 class="section-title">
+                            <i class="fas fa-paperclip"></i> Attachments
+                        </h6>
+                        <div class="attachment-grid">
+                            ${data.attachment.map(att => {
+                                const isImage = att.file_type && att.file_type.includes('image');
+                                const isPdf = att.file_type && att.file_type.includes('pdf');
+                                const icon = isPdf ? 'fa-file-pdf' : (isImage ? 'fa-image' : 'fa-file');
+                                const iconClass = isPdf ? 'pdf-icon' : (isImage ? 'image-icon' : 'file-icon');
+                                
+                                return `
+                                <div class="attachment-card">
+                                    <div class="attachment-preview">
+                                        ${isImage ? 
+                                            `<img src="${att.file_path}" alt="${att.file_name}" onclick="previewImage('${att.file_path}')">` : 
+                                            `<i class="fas ${icon} ${iconClass}"></i>`
+                                        }
+                                    </div>
+                                    <div class="attachment-info">
+                                        <div class="attachment-name">${att.file_name}</div>                                        <div class="attachment-meta">
+                                            <span>${isPdf ? 'PDF Document' : (isImage ? 'Image File' : 'File')}</span>
+                                            <span>${formatFileSize(att.file_size)}</span>
+                                        </div>
+                                        <div class="attachment-actions">
+                                            <a href="${att.file_path}" class="btn btn-sm btn-primary" target="_blank" download>
+                                                <i class="fas fa-download me-1"></i> Download
+                                            </a>
+                                            ${isImage ? 
+                                                `<button class="btn btn-sm btn-outline" onclick="previewImage('${att.file_path}')">
+                                                    <i class="fas fa-eye me-1"></i> View
+                                                </button>` : ''
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>`;
                 }
 
-                // Set modal title and build content
-                document.getElementById('noticeDetailTitle').textContent = data.title;
-
+                // Build content with improved design
                 const content = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="badge bg-${importanceClass}">
-                        ${data.importance.charAt(0).toUpperCase() + data.importance.slice(1)}
-                    </span>
-                    <span class="text-muted small">
-                        Posted by: ${data.posted_by_name || data.posted_by} on ${new Date(data.created_at).toLocaleDateString()}
-                    </span>
+                <div class="notice-detail-header">
+                    <div class="notice-detail-meta">
+                        <span class="notice-detail-badge ${data.importance}">
+                            ${data.importance.charAt(0).toUpperCase() + data.importance.slice(1)}
+                        </span>
+                        <span class="notice-detail-date">
+                            <i class="fas fa-clock me-1"></i> ${createdDate}
+                        </span>
+                    </div>
                 </div>
                 
-                <div class="notice-content border-top pt-3 mb-3">
-                    ${data.content}
+                <div class="notice-detail-content">
+                    <div class="ql-content">
+                        ${data.content}
+                    </div>
                 </div>
                 
-                <div class="d-flex align-items-center text-muted small">
-                    <i class="far fa-calendar-alt me-2"></i>
-                    <span>
-                        ${new Date(data.start_date).toLocaleDateString()}
-                        ${data.end_date ? ` - ${new Date(data.end_date).toLocaleDateString()}` : ''}
-                    </span>
+                <div class="notice-detail-footer">
+                    <div class="notice-detail-info">
+                        <div class="notice-info-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            <div>
+                                <span class="info-label">Valid From</span>
+                                <span class="info-value">${startDate}</span>
+                            </div>
+                        </div>
+                        
+                        ${data.end_date ? `
+                        <div class="notice-info-item">
+                            <i class="fas fa-calendar-check"></i>
+                            <div>
+                                <span class="info-label">Valid Until</span>
+                                <span class="info-value">${endDate}</span>
+                            </div>
+                        </div>` : ''}
+                        
+                        <div class="notice-info-item">
+                            <i class="fas fa-user"></i>
+                            <div>
+                                <span class="info-label">Posted By</span>
+                                <span class="info-value">${data.posted_by_name || 'Admin'}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 ${attachmentHtml}
             `;
-
                 document.getElementById('noticeDetailContent').innerHTML = content;
+
+                // Format attachment buttons
+                document.querySelectorAll('.btn-sm.btn-outline').forEach(btn => {
+                    btn.classList.add('btn-outline-secondary');
+                });
+
+                // Set up the edit button click handler
+                document.getElementById('editNoticeBtn').onclick = function() {
+                    // Close detail modal
+                    bootstrap.Modal.getInstance(document.getElementById('noticeDetailModal')).hide();
+                    // Open edit modal with this notice
+                    editNotice(noticeId);
+                };
 
                 // Show the modal
                 const modal = new bootstrap.Modal(document.getElementById('noticeDetailModal'));
