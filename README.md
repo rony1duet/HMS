@@ -324,7 +324,7 @@ The system includes several internal APIs for dynamic content:
 
 ## 🤝 Contributing
 
-We welcome contributions to improve the Hall Management System:
+Welcome contributions to improve the Hall Management System:
 
 1. **Fork the repository**
 2. **Create a feature branch:**

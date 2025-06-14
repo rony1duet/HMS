@@ -3,6 +3,7 @@ $title = 'Student Dashboard';
 require_once '../config/database.php';
 require_once '../includes/Session.php';
 require_once '../models/User.php';
+require_once '../includes/html_purifier.php';
 
 Session::init();
 $user = new User($conn);
@@ -876,8 +877,16 @@ require_once '../includes/header.php';
                                             <?php endif; ?>
                                         </div>
                                         <p class="notice-excerpt">
-                                            <?php echo nl2br(htmlspecialchars(substr($notice['content'], 0, 100)) .
-                                                (strlen($notice['content']) > 100 ? '...' : '')); ?>
+                                            <?php
+                                            // Strip HTML tags but preserve spaces
+                                            $plainContent = strip_tags($notice['content']);
+                                            // Clean up whitespace for better preview
+                                            $plainContent = preg_replace('/\s+/', ' ', $plainContent);
+                                            $plainContent = trim($plainContent);
+                                            // Limit to around 100 characters
+                                            echo htmlspecialchars(substr($plainContent, 0, 100)) .
+                                                (strlen($plainContent) > 100 ? '...' : '');
+                                            ?>
                                         </p>
                                     </div>
                                     <div class="notice-cell notice-meta">

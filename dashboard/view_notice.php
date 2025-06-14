@@ -4,6 +4,7 @@ require_once '../config/database.php';
 require_once '../includes/Session.php';
 require_once '../models/User.php';
 require_once '../models/NoticeAttachment.php';
+require_once '../includes/html_purifier.php';
 
 Session::init();
 $user = new User($conn);
@@ -141,8 +142,109 @@ require_once '../includes/header.php';
         font-size: 1.05rem;
     }
 
-    .notice-content p {
+    /* Quill.js content formatting */
+    .quill-content p {
         margin-bottom: 1rem;
+    }
+
+    .quill-content h1,
+    .quill-content h2,
+    .quill-content h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+
+    .quill-content ul,
+    .quill-content ol {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+    }
+
+    .quill-content li {
+        margin-bottom: 0.5rem;
+    }
+
+    .quill-content a {
+        color: var(--primary);
+        text-decoration: underline;
+    }
+
+    .quill-content blockquote {
+        border-left: 4px solid #e5e7eb;
+        padding-left: 1rem;
+        font-style: italic;
+        margin: 1rem 0;
+    }
+
+    .quill-content pre {
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        padding: 1rem;
+        margin: 1rem 0;
+        white-space: pre-wrap;
+        font-family: monospace;
+    }
+
+    .quill-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 4px;
+        margin: 1rem 0;
+    }
+
+    .quill-content table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1rem 0;
+    }
+
+    .quill-content table td,
+    .quill-content table th {
+        border: 1px solid #e5e7eb;
+        padding: 0.5rem;
+    }
+
+    .quill-content table th {
+        background-color: #f8f9fa;
+    }
+
+    /* Code blocks and syntax highlighting */
+    .quill-content pre.ql-syntax {
+        background-color: #2d2d2d;
+        color: #f8f8f2;
+        border-radius: 4px;
+        padding: 1rem;
+        margin: 1rem 0;
+        white-space: pre-wrap;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    /* Formula formatting for math equations */
+    .quill-content .ql-formula {
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    /* Mobile responsiveness for Quill content */
+    @media (max-width: 768px) {
+        .quill-content {
+            font-size: 1rem;
+        }
+
+        .quill-content img {
+            width: 100%;
+            height: auto;
+        }
+
+        .quill-content table {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+        }
     }
 
     .notice-footer {
@@ -402,8 +504,8 @@ require_once '../includes/header.php';
 </style>
 
 <div class="notice-view-container">
-    <a href="/HMS/dashboard/student.php" class="back-btn">
-        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    <a href="/HMS/dashboard/student_notices.php" class="back-btn">
+        <i class=" fas fa-arrow-left"></i> Back to Notices
     </a>
 
     <div class="notice-card">
@@ -430,9 +532,8 @@ require_once '../includes/header.php';
                 <?php endif; ?>
             </div>
         </div>
-
-        <div class="notice-content">
-            <?php echo nl2br(htmlspecialchars($notice['content'])); ?>
+        <div class="notice-content quill-content">
+            <?php echo purify_html($notice['content']); ?>
         </div>
     </div>
 
@@ -468,17 +569,96 @@ require_once '../includes/header.php';
                     </div>
                 <?php endif; ?>
             <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
+        </div> <?php endif; ?>
 </div>
 
 <script>
-    document.getElementById('downloadAll').addEventListener('click', function(e) {
-        e.preventDefault();
-        <?php foreach ($attachments as $attachment): ?>
-            window.open('<?php echo htmlspecialchars($attachment['file_path']); ?>', '_blank');
-        <?php endforeach; ?>
+    // Process all links in the notice content to open in new tabs for security
+    document.addEventListener('DOMContentLoaded', function() {
+        const quillContent = document.querySelector('.quill-content');
+        if (quillContent) {
+            // Make external links open in new tabs
+            const links = quillContent.querySelectorAll('a');
+            links.forEach(link => {
+                // Only add attributes if it's an external link
+                if (link.hostname !== window.location.hostname) {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                }
+            });
+
+            // Add responsive behavior to embedded content
+            const images = quillContent.querySelectorAll('img');
+            images.forEach(img => {
+                img.classList.add('img-fluid');
+
+                // Add lightbox behavior for images
+                img.addEventListener('click', function() {
+                    const modal = document.createElement('div');
+                    modal.classList.add('modal', 'fade');
+                    modal.setAttribute('tabindex', '-1');
+                    modal.innerHTML = `
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-body p-0">
+                                <img src="${this.src}" class="img-fluid w-100">
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                    document.body.appendChild(modal);
+                    const modalObj = new bootstrap.Modal(modal);
+                    modalObj.show();
+
+                    modal.addEventListener('hidden.bs.modal', function() {
+                        document.body.removeChild(modal);
+                    });
+                });
+            });
+
+            // Handle code blocks for better display
+            const codeBlocks = quillContent.querySelectorAll('pre.ql-syntax');
+            codeBlocks.forEach(block => {
+                block.classList.add('code-block');
+
+                // Add copy button
+                const copyBtn = document.createElement('button');
+                copyBtn.classList.add('btn', 'btn-sm', 'btn-outline-light', 'copy-code-btn');
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                copyBtn.style.position = 'absolute';
+                copyBtn.style.top = '0.5rem';
+                copyBtn.style.right = '0.5rem';
+                copyBtn.style.opacity = '0.7';
+
+                // Wrap block for positioning
+                const wrapper = document.createElement('div');
+                wrapper.style.position = 'relative';
+                block.parentNode.insertBefore(wrapper, block);
+                wrapper.appendChild(block);
+                wrapper.appendChild(copyBtn);
+
+                copyBtn.addEventListener('click', function() {
+                    const code = block.textContent;
+                    navigator.clipboard.writeText(code).then(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                        }, 2000);
+                    });
+                });
+            });
+        }
     });
+
+    // Handle attachment downloads
+    document.getElementById('downloadAll').addEventListener('click', function(e) {
+                e.preventDefault();
+                <?php foreach ($attachments as $attachment): ?>
+                    window.open('<?php echo htmlspecialchars($attachment['file_path']); ?>', '_blank');
+                <?php endforeach; ?>
 </script>
 
 <?php require_once '../includes/footer.php'; ?>

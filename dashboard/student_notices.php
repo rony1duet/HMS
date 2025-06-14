@@ -4,6 +4,7 @@ require_once '../config/database.php';
 require_once '../includes/Session.php';
 require_once '../models/Notice.php';
 require_once '../models/User.php';
+require_once '../includes/html_purifier.php';
 
 Session::init();
 
@@ -221,6 +222,17 @@ require_once '../includes/header.php';
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        line-height: 1.5;
+    }
+
+    /* Quill.js content formatting */
+    .notice-content p {
+        margin: 0.25rem 0;
+    }
+
+    .notice-content br {
+        display: block;
+        content: "";
     }
 
     .notice-footer {
@@ -437,9 +449,22 @@ require_once '../includes/header.php';
                             <?php endif; ?>
                         </div>
                     </div>
-
                     <div class="notice-content">
-                        <?php echo htmlspecialchars(substr($n['content'], 0, 200)) . (strlen($n['content']) > 200 ? '...' : ''); ?>
+                        <?php
+                        // Convert HTML to plain text for preview while preserving basic structure
+                        $purifiedContent = purify_html($n['content']);
+                        $plainContent = strip_tags($purifiedContent);
+
+                        // Clean up whitespace for better preview
+                        $plainContent = preg_replace('/\s+/', ' ', $plainContent);
+                        $plainContent = trim($plainContent);
+
+                        // Limit to around 200 characters for preview
+                        $limitedContent = mb_substr($plainContent, 0, 200);
+
+                        // Add ellipsis if content was truncated
+                        echo htmlspecialchars($limitedContent) . (mb_strlen($plainContent) > 200 ? '...' : '');
+                        ?>
                     </div>
 
                     <div class="notice-footer">
